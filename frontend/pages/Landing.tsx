@@ -14,6 +14,7 @@ import MagneticButton from '../components/MagneticButton'
 import Auralis from '../components/ui/auralis'
 import GradientBlobCard from '../components/ui/gradient-bold-card'
 import MythsSection from '../components/MythsSection'
+import { Typewriter } from '../components/ui/typewriter'
 
 function StatCard({ num, suffix, label, sub }: {
   num: number; suffix?: string; label: string; sub: string
@@ -23,22 +24,22 @@ function StatCard({ num, suffix, label, sub }: {
   return (
     <motion.div variants={fadeUpVariants}>
       <InteractiveCard
-        className="bg-white rounded-2xl p-6 border border-[#E8E8E8] h-full"
-        style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}
+        className="bg-gradient-to-b from-[#3D0308] via-[#280205] to-[#140002] rounded-2xl p-6 border border-[#6B0D15]/40 hover:border-[#9E1622] hover:shadow-[0_0_20px_rgba(158,22,34,0.35)] transition-all duration-300 h-full"
+        style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
       >
-        <div className="mb-3 w-8 h-0.5 bg-[#C1121F] rounded-full transition-transform duration-300 group-hover:scale-x-125 origin-left" />
+        <div className="mb-3 w-8 h-0.5 bg-[#C1121F] shadow-[0_0_8px_#C1121F] rounded-full transition-transform duration-300 group-hover:scale-x-125 origin-left" />
         <div className="flex items-end gap-0.5 mb-1 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105 origin-left">
           <span
-            className="text-5xl font-extrabold text-[#171717] leading-none"
+            className="text-5xl font-extrabold text-white leading-none"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             <AnimatedCounter value={num} decimals={decimals} suffix={suffix} />
           </span>
         </div>
-        <div className="text-sm font-semibold text-[#171717] mt-2 mb-1 transition-transform duration-300 group-hover:-translate-y-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="text-sm font-semibold text-white mt-2 mb-1 transition-transform duration-300 group-hover:-translate-y-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           {label}
         </div>
-        <div className="text-xs text-[#969696]">{sub}</div>
+        <div className="text-xs text-[#D4A5A9]">{sub}</div>
       </InteractiveCard>
     </motion.div>
   )
@@ -112,16 +113,68 @@ function HowStep({ step, icon: Icon, title, desc, statusColor, statusLabel, show
   )
 }
 
+const mapRawRequest = (r: any) => ({
+  id: r.id,
+  patientName: r.patient_name || r.patientName || 'Emergency Patient',
+  bloodGroup: r.blood_group || r.bloodGroup || 'O+',
+  units: r.units || 1,
+  hospital: r.hospital || 'Hospital',
+  ward: r.ward || 'General Ward',
+  city: r.city || 'Lahore',
+  district: r.district || r.city || 'Lahore',
+  urgency: (r.urgency || 'urgent').toLowerCase(),
+  status: r.status || 'awaiting',
+  phone: r.phone || '',
+  medicalContext: r.medical_context || r.medicalContext || '',
+  slipUrl: r.slip_url || r.slipUrl || '',
+  createdAt: r.created_at ? (typeof r.created_at === 'number' && r.created_at < 1e11 ? r.created_at * 1000 : r.created_at) : (r.createdAt || Date.now()),
+  donorName: r.donor_name || r.donorName,
+  donorEta: r.donor_eta || r.donorEta,
+});
+
 export default function Landing() {
   const navigate = useNavigate()
   const [requests, setRequests] = useState<any[]>([])
+  const [previewRequests, setPreviewRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
     requestNotificationPermission()
-    return backend.subscribeToRequests((data) => {
-      setRequests(data)
-    })
+
+    const fetchActiveRequests = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/requests/");
+        if (response.ok) {
+          const data = await response.json();
+          const mapped = data.map(mapRawRequest);
+          const activeOnly = mapped
+            .filter((req: any) => req.status !== "fulfilled" && req.status !== "🟢 Fulfilled")
+            .slice(0, 3);
+          setPreviewRequests(activeOnly);
+        }
+      } catch (err) {
+        console.error("Failed to fetch landing page request preview:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActiveRequests();
+
+    const unsubscribe = backend.subscribeToRequests((data) => {
+      setRequests(data);
+      const mapped = data.map(mapRawRequest);
+      const activeOnly = mapped
+        .filter((req: any) => req.status !== "fulfilled" && req.status !== "🟢 Fulfilled")
+        .slice(0, 3);
+      if (activeOnly.length > 0) {
+        setPreviewRequests(activeOnly);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [])
 
   const liveCount = requests.filter((r) => r.status === 'awaiting').length
@@ -177,12 +230,20 @@ export default function Landing() {
 
               <motion.h1
                 variants={fadeUpVariants}
-                className="text-[2.75rem] sm:text-[3.5rem] font-extrabold text-white leading-[1.08] mb-6"
+                className="text-[2.75rem] sm:text-[3.5rem] font-extrabold text-white leading-[1.12] mb-6 min-h-[3.5em] sm:min-h-[3.2em]"
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
-                Emergency Blood.<br />
-                <span className="text-[#FDE8EA]">Found in Minutes,</span><br />
-                Not Hours.
+                <Typewriter
+                  words={[
+                    "Emergency Blood. Found in Minutes, Not Hours.",
+                    "Emergency Blood. Matched in Real-Time, Saved in Seconds.",
+                    "Emergency Blood. Verified Donors, Direct to Hospital."
+                  ]}
+                  speed={65}
+                  delayBetweenWords={3000}
+                  cursor={true}
+                  cursorChar="|"
+                />
               </motion.h1>
 
               <motion.p variants={fadeUpVariants} className="text-white/70 text-sm sm:text-base leading-relaxed mb-8 max-w-[480px]">
@@ -379,16 +440,44 @@ export default function Landing() {
               </Link>
             </MagneticButton>
           </motion.div>
-          <motion.div variants={containerVariants} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(requests.filter((r) => r.status !== 'fulfilled').length > 0
-              ? requests.filter((r) => r.status !== 'fulfilled')
-              : requests
-            ).slice(0, 3).map((r) => (
-              <motion.div key={r.id} variants={fadeUpVariants}>
-                <RequestCard data={r} />
-              </motion.div>
-            ))}
-          </motion.div>
+          {loading ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-gradient-to-b from-[#3D0308] via-[#280205] to-[#140002] border border-[#6B0D15]/40 rounded-[14px] p-5 animate-pulse flex flex-col justify-between h-[180px]">
+                  <div className="flex justify-between items-start">
+                    <div className="h-4 bg-red-950/60 rounded w-20 border border-red-900/30" />
+                    <div className="h-8 bg-red-900/40 rounded w-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-5 bg-red-950/80 rounded w-3/4" />
+                    <div className="h-4 bg-red-950/50 rounded w-1/2" />
+                  </div>
+                  <div className="h-8 bg-[#C1121F]/30 rounded w-full" />
+                </div>
+              ))}
+            </div>
+          ) : previewRequests.length > 0 ? (
+            <motion.div variants={containerVariants} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {previewRequests.map((r) => (
+                <motion.div key={r.id} variants={fadeUpVariants}>
+                  <RequestCard data={r} dark={true} />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="text-center py-12 bg-gradient-to-b from-[#3D0308] via-[#280205] to-[#140002] border border-[#6B0D15]/40 rounded-2xl p-8">
+              <div className="w-12 h-12 bg-[#54080F] border border-[#780F18] rounded-2xl flex items-center justify-center mx-auto mb-3 text-[#F87171]">
+                <Activity size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-white">No Active Emergency Requests</h3>
+              <p className="text-sm text-[#D4A5A9] mt-1 max-w-sm mx-auto">
+                There are currently no active requests waiting for donors in the database.
+              </p>
+              <Link to="/request/new" className="bg-[#C1121F] hover:bg-[#9E1622] text-white py-2 px-4 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 mt-4 transition-colors">
+                <Activity size={14} /> Request Emergency Blood
+              </Link>
+            </div>
+          )}
         </div>
       </motion.section>
 
@@ -418,14 +507,14 @@ export default function Landing() {
               { icon: Zap, title: 'District Matching', desc: 'Requests matched to donors by city and district for fastest response.' },
             ].map(({ icon: Icon, title, desc }) => (
               <motion.div key={title} variants={fadeUpVariants}>
-                <InteractiveCard className="bg-[#FFF7F7] border border-[#F0D9DC] rounded-2xl p-5 h-full">
-                  <div className="w-9 h-9 bg-[#FDE8EA] rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5">
-                    <Icon size={18} className="text-[#C1121F]" strokeWidth={2} />
+                <InteractiveCard className="bg-gradient-to-b from-[#3D0308] via-[#280205] to-[#140002] border border-[#6B0D15]/40 hover:border-[#9E1622] hover:shadow-[0_0_20px_rgba(158,22,34,0.35)] transition-all duration-300 rounded-2xl p-5 h-full">
+                  <div className="w-9 h-9 bg-[#54080F] text-[#F87171] border border-[#780F18] rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5">
+                    <Icon size={18} strokeWidth={2} />
                   </div>
-                  <h3 className="text-sm font-bold text-[#171717] mb-1 transition-transform duration-300 group-hover:-translate-y-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  <h3 className="text-sm font-bold text-white mb-1 transition-transform duration-300 group-hover:-translate-y-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                     {title}
                   </h3>
-                  <p className="text-xs text-[#6B6B6B] leading-relaxed">{desc}</p>
+                  <p className="text-xs text-[#D4A5A9] leading-relaxed">{desc}</p>
                 </InteractiveCard>
               </motion.div>
             ))}

@@ -56,28 +56,51 @@ export function formatTimeAgo(timestamp: number | undefined, defaultVal = 'Just 
 interface Props {
   data: BloodRequest | RequestData
   compact?: boolean
+  dark?: boolean
 }
 
-export default function RequestCard({ data, compact }: Props) {
+export default function RequestCard({ data, compact, dark }: Props) {
   const st = statusConfig[data.status]
   const isCritical = data.urgency === 'critical' && data.status === 'awaiting'
   const time = ('timeAgo' in data && data.timeAgo) ? data.timeAgo : formatTimeAgo(data.createdAt)
 
+  const cardBg = dark
+    ? `bg-gradient-to-b from-[#3D0308] via-[#280205] to-[#140002] border border-[#6B0D15]/40 hover:border-[#9E1622] hover:shadow-[0_0_20px_rgba(158,22,34,0.35)] transition-all duration-300 rounded-[14px] overflow-hidden`
+    : `bg-white rounded-[14px] border overflow-hidden ${
+        isCritical ? 'border-[#F0D9DC] animate-glow' : 'border-[#E8E8E8]'
+      }`
+
+  const urgencyTextColor = dark
+    ? data.urgency === 'critical'
+      ? 'text-red-400 font-bold'
+      : data.urgency === 'urgent'
+      ? 'text-amber-400 font-bold'
+      : 'text-[#D4A5A9]'
+    : urgencyColor[data.urgency]
+
+  const statusBadgeStyle = dark
+    ? data.status === 'awaiting'
+      ? 'bg-[#54080F] text-[#F87171] border border-[#780F18]'
+      : data.status === 'en-route'
+      ? 'bg-amber-950/70 text-amber-300 border border-amber-800/40'
+      : 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/40'
+    : `${st.bg} ${st.text}`
+
   return (
     <InteractiveCard
-      className={`bg-white rounded-[14px] border overflow-hidden ${
-        isCritical ? 'border-[#F0D9DC] animate-glow' : 'border-[#E8E8E8]'
-      }`}
-      style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+      className={cardBg}
+      style={{ boxShadow: dark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 1px 6px rgba(0,0,0,0.06)' }}
     >
       <div className="flex">
         {/* Urgency rail */}
         <div
           className={`w-1 flex-shrink-0 ${
             data.urgency === 'critical'
-              ? 'bg-[#C1121F]'
+              ? 'bg-[#C1121F] shadow-[0_0_8px_#C1121F]'
               : data.urgency === 'urgent'
               ? 'bg-[#D99000]'
+              : dark
+              ? 'bg-neutral-700'
               : 'bg-[#E8E8E8]'
           }`}
         />
@@ -86,67 +109,67 @@ export default function RequestCard({ data, compact }: Props) {
           {/* Top row */}
           <div className="flex items-start justify-between mb-3">
             <div>
-              <span className={`text-[10px] font-bold tracking-widest ${urgencyColor[data.urgency]}`}>
+              <span className={`text-[10px] font-bold tracking-widest ${urgencyTextColor}`}>
                 {urgencyLabel[data.urgency]}
               </span>
-              <div className="flex items-center gap-1.5 mt-0.5 text-[#969696]">
+              <div className={`flex items-center gap-1.5 mt-0.5 ${dark ? 'text-[#D4A5A9]' : 'text-[#969696]'}`}>
                 <Clock size={11} strokeWidth={2} />
                 <span className="text-[11px]">{time}</span>
               </div>
             </div>
             <div className="text-right">
               <div
-                className="text-3xl font-extrabold text-[#C1121F] leading-none transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5"
+                className={`text-3xl font-extrabold leading-none transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 ${
+                  dark ? 'text-white' : 'text-[#C1121F]'
+                }`}
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
                 {data.bloodGroup}
               </div>
-              <div className="text-[11px] font-medium text-[#6B6B6B] mt-1">{data.units} UNIT{data.units > 1 ? 'S' : ''}</div>
+              <div className={`text-[11px] font-medium mt-1 ${dark ? 'text-[#D4A5A9]' : 'text-[#6B6B6B]'}`}>
+                {data.units} UNIT{data.units > 1 ? 'S' : ''}
+              </div>
             </div>
           </div>
 
           {/* Hospital */}
           <div className="mb-3">
-            <div className="text-sm font-semibold text-[#171717]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <div className={`text-sm font-semibold ${dark ? 'text-white' : 'text-[#171717]'}`} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {data.hospital}
             </div>
             <div className="flex items-center gap-1 mt-0.5">
-              <MapPin size={11} strokeWidth={2} className="text-[#969696]" />
-              <span className="text-[12px] text-[#6B6B6B]">{data.district} · {data.ward}</span>
+              <MapPin size={11} strokeWidth={2} className={dark ? 'text-[#D4A5A9]' : 'text-[#969696]'} />
+              <span className={`text-[12px] ${dark ? 'text-[#D4A5A9]' : 'text-[#6B6B6B]'}`}>{data.district} · {data.ward}</span>
             </div>
           </div>
 
           {/* Status */}
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.bg} ${st.text} mb-3 animate-breath`}>
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${statusBadgeStyle} mb-3 animate-breath`}>
             <span className={`w-1.5 h-1.5 rounded-full ${st.dot} ${data.status === 'awaiting' ? 'animate-live-dot' : ''}`} />
             {st.label}
           </div>
 
           {/* Verification + CTA */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-[#168A55] transition-transform duration-300 group-hover:-translate-y-0.5">
+            <div className={`flex items-center gap-1 transition-transform duration-300 group-hover:-translate-y-0.5 ${dark ? 'text-emerald-400' : 'text-[#168A55]'}`}>
               <ShieldCheck size={12} strokeWidth={2} />
               <span className="text-[11px] font-medium">Verified Request</span>
             </div>
             {data.status === 'awaiting' && (
               <button
-                className="btn-primary py-1.5 px-3 text-xs rounded-lg transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5"
+                className="bg-[#C1121F] text-white hover:bg-[#9E1622] shadow-[0_0_12px_rgba(193,18,31,0.4)] py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 inline-flex items-center gap-1.5"
                 onClick={async (e) => {
                   e.stopPropagation();
                   if (!backend.getCurrentDonor) {
-                    // fallback demo donor
                     const demoDonor = { uid: 'donor-demo', name: 'Demo Donor' } as any;
                     await backend.registerDonor(demoDonor);
                   }
                   const donor = backend.getCurrentDonor();
-                  // Use a default ETA
                   const eta = '30 min';
                   await backend.acceptRequest(data.id, donor?.name || 'Demo Donor', eta, donor?.uid || 'donor-demo');
-                  // Optimistically update UI
                   data.status = 'en-route';
                   data.donorName = donor?.name || 'Demo Donor';
                   data.donorEta = eta;
-                  // force re-render by updating parent state (assume parent passes new data)
                 }}
               >
                 <Heart size={12} strokeWidth={2} />
@@ -154,7 +177,7 @@ export default function RequestCard({ data, compact }: Props) {
               </button>
             )}
             {data.status === 'en-route' && (
-              <span className="text-xs font-medium text-[#D99000] transition-transform duration-300 group-hover:-translate-y-0.5">
+              <span className={`text-xs font-medium transition-transform duration-300 group-hover:-translate-y-0.5 ${dark ? 'text-amber-300' : 'text-[#D99000]'}`}>
                 {data.donorName} · ETA {data.donorEta}
               </span>
             )}
