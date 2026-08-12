@@ -1,0 +1,47 @@
+# Environment variables & secrets
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+
+# Build & cache outputs
+dist/
+build/
+.cache/
+.vite/
+*.tsbuildinfo
+vite.config.*.timestamp-*
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases & local uploads
+*.db
+*.sqlite
+*.sqlite3
+backend/erythronet.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# System & logs
+*.log
+*-debug.log*
+logs/
+.tmp-*
+.claude-replay.*
+.DS_Store
+Thumbs.db
+
+# Design tool cache
+.figma/

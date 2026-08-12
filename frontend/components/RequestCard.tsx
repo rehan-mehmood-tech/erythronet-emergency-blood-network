@@ -1,0 +1,166 @@
+import { MapPin, Clock, ShieldCheck, Heart } from 'lucide-react';
+import { backend } from '../lib/firebase';
+import { Link } from 'react-router-dom';
+import { BloodRequest } from '../types';
+import InteractiveCard from './InteractiveCard';
+
+
+export type RequestStatus = 'awaiting' | 'en-route' | 'fulfilled'
+export type Urgency = 'critical' | 'urgent' | 'routine'
+
+export interface RequestData {
+  id: string
+  bloodGroup: string
+  units: number
+  hospital: string
+  district: string
+  ward: string
+  urgency: Urgency
+  status: RequestStatus
+  timeAgo?: string
+  createdAt?: number
+  donorName?: string
+  donorEta?: string
+}
+
+const urgencyLabel: Record<Urgency, string> = {
+  critical: 'CRITICAL',
+  urgent: 'URGENT',
+  routine: 'ROUTINE',
+}
+
+const urgencyColor: Record<Urgency, string> = {
+  critical: 'text-[#C1121F]',
+  urgent: 'text-[#D99000]',
+  routine: 'text-[#6B6B6B]',
+}
+
+const statusConfig: Record<RequestStatus, { label: string; dot: string; bg: string; text: string }> = {
+  awaiting: { label: 'AWAITING DONOR', dot: 'bg-[#C1121F]', bg: 'bg-[#FDE8EA]', text: 'text-[#C1121F]' },
+  'en-route': { label: 'DONOR EN ROUTE', dot: 'bg-[#D99000]', bg: 'bg-amber-50', text: 'text-[#D99000]' },
+  fulfilled: { label: 'FULFILLED', dot: 'bg-[#168A55]', bg: 'bg-green-50', text: 'text-[#168A55]' },
+}
+
+export function formatTimeAgo(timestamp: number | undefined, defaultVal = 'Just now') {
+  if (!timestamp) return defaultVal;
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'Just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
+
+interface Props {
+  data: BloodRequest | RequestData
+  compact?: boolean
+}
+
+export default function RequestCard({ data, compact }: Props) {
+  const st = statusConfig[data.status]
+  const isCritical = data.urgency === 'critical' && data.status === 'awaiting'
+  const time = ('timeAgo' in data && data.timeAgo) ? data.timeAgo : formatTimeAgo(data.createdAt)
+
+  return (
+    <InteractiveCard
+      className={`bg-white rounded-[14px] border overflow-hidden ${
+        isCritical ? 'border-[#F0D9DC] animate-glow' : 'border-[#E8E8E8]'
+      }`}
+      style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+    >
+      <div className="flex">
+        {/* Urgency rail */}
+        <div
+          className={`w-1 flex-shrink-0 ${
+            data.urgency === 'critical'
+              ? 'bg-[#C1121F]'
+              : data.urgency === 'urgent'
+              ? 'bg-[#D99000]'
+              : 'bg-[#E8E8E8]'
+          }`}
+        />
+
+        <div className="flex-1 p-4">
+          {/* Top row */}
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <span className={`text-[10px] font-bold tracking-widest ${urgencyColor[data.urgency]}`}>
+                {urgencyLabel[data.urgency]}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5 text-[#969696]">
+                <Clock size={11} strokeWidth={2} />
+                <span className="text-[11px]">{time}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div
+                className="text-3xl font-extrabold text-[#C1121F] leading-none transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                {data.bloodGroup}
+              </div>
+              <div className="text-[11px] font-medium text-[#6B6B6B] mt-1">{data.units} UNIT{data.units > 1 ? 'S' : ''}</div>
+            </div>
+          </div>
+
+          {/* Hospital */}
+          <div className="mb-3">
+            <div className="text-sm font-semibold text-[#171717]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {data.hospital}
+            </div>
+            <div className="flex items-center gap-1 mt-0.5">
+              <MapPin size={11} strokeWidth={2} className="text-[#969696]" />
+              <span className="text-[12px] text-[#6B6B6B]">{data.district} · {data.ward}</span>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.bg} ${st.text} mb-3 animate-breath`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${st.dot} ${data.status === 'awaiting' ? 'animate-live-dot' : ''}`} />
+            {st.label}
+          </div>
+
+          {/* Verification + CTA */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-[#168A55] transition-transform duration-300 group-hover:-translate-y-0.5">
+              <ShieldCheck size={12} strokeWidth={2} />
+              <span className="text-[11px] font-medium">Verified Request</span>
+            </div>
+            {data.status === 'awaiting' && (
+              <button
+                className="btn-primary py-1.5 px-3 text-xs rounded-lg transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!backend.getCurrentDonor) {
+                    // fallback demo donor
+                    const demoDonor = { uid: 'donor-demo', name: 'Demo Donor' } as any;
+                    await backend.registerDonor(demoDonor);
+                  }
+                  const donor = backend.getCurrentDonor();
+                  // Use a default ETA
+                  const eta = '30 min';
+                  await backend.acceptRequest(data.id, donor?.name || 'Demo Donor', eta, donor?.uid || 'donor-demo');
+                  // Optimistically update UI
+                  data.status = 'en-route';
+                  data.donorName = donor?.name || 'Demo Donor';
+                  data.donorEta = eta;
+                  // force re-render by updating parent state (assume parent passes new data)
+                }}
+              >
+                <Heart size={12} strokeWidth={2} />
+                I Will Donate
+              </button>
+            )}
+            {data.status === 'en-route' && (
+              <span className="text-xs font-medium text-[#D99000] transition-transform duration-300 group-hover:-translate-y-0.5">
+                {data.donorName} · ETA {data.donorEta}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </InteractiveCard>
+  )
+}

@@ -1,0 +1,10 @@
+{
+  "name": "erythronet-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build",
+    "preview": "pnpm --filter frontend preview",
+    "format": "pnpm --filter frontend format"
+  }
+}
