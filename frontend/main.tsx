@@ -2,8 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/index.css'
-import { messaging, requestNotificationPermission } from './lib/firebase'
-import { onMessage } from 'firebase/messaging'
+import { messaging } from './lib/firebase'
+// import { onMessage } from 'firebase/messaging'
 
 // ─── Suppress noisy background errors ────────────────────────────────────────
 // Catches unhandled promise rejections from background polling,
@@ -34,23 +34,9 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && isFcmEnable
       console.warn('⚠️ FCM Service Worker registration skipped or failed:', err);
     });
 
-  // Request notification permission on initialization
-  requestNotificationPermission();
+  // [PURGED]: requestNotificationPermission();
 
-  // Listen for foreground FCM messages
-  if (messaging) {
-    onMessage(messaging, (payload) => {
-      console.log('🔔 [FCM Foreground Alert]:', payload);
-      if (Notification.permission === 'granted') {
-        const title = payload.notification?.title || 'ErythroNet Alert';
-        const options = {
-          body: payload.notification?.body || 'Emergency request update received!',
-          icon: '/favicon.ico',
-        };
-        new Notification(title, options);
-      }
-    });
-  }
+  // [PURGED]: Foreground FCM messages listener
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

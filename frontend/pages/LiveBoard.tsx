@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Activity, SlidersHorizontal, X } from 'lucide-react'
 import RequestCard from '../components/RequestCard'
-import { backend, requestNotificationPermission } from '../lib/firebase'
+import { backend } from '../lib/firebase'
 import type { RequestData, Urgency, RequestStatus } from '../components/RequestCard'
 import type { BloodRequest } from '../types'
 
@@ -42,7 +42,7 @@ export default function LiveBoard() {
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all')
 
   useEffect(() => {
-    requestNotificationPermission();
+    // [PURGED]: requestNotificationPermission();
 
     // Use backend.subscribeToRequests which handles FastAPI polling internally
     const unsubscribe = backend.subscribeToRequests((data) => {

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import RequestCard, { formatTimeAgo } from '../components/RequestCard'
-import { backend, requestNotificationPermission } from '../lib/firebase'
+import { backend } from '../lib/firebase'
 import { fadeUpVariants, containerVariants } from '../lib/animations'
 import AnimatedCounter from '../components/AnimatedCounter'
 import InteractiveCard from '../components/InteractiveCard'
@@ -144,7 +144,7 @@ export default function Landing() {
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
-    requestNotificationPermission()
+    // [PURGED]: requestNotificationPermission()
 
     const fetchActiveRequests = async () => {
       try {
