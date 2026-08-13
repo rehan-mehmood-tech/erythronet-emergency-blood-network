@@ -9,28 +9,39 @@ const getConfig = (key, fallback) => {
   }
 };
 
-firebase.initializeApp({
-  apiKey: getConfig('VITE_FIREBASE_API_KEY', "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8"),
-  authDomain: getConfig('VITE_FIREBASE_AUTH_DOMAIN', "erythronet-emergency-blood-net.firebaseapp.com"),
-  projectId: getConfig('VITE_FIREBASE_PROJECT_ID', "erythronet-emergency-blood-net"),
-  storageBucket: getConfig('VITE_FIREBASE_STORAGE_BUCKET', "erythronet-emergency-blood-net.firebasestorage.app"),
-  messagingSenderId: getConfig('VITE_FIREBASE_MESSAGING_SENDER_ID', "195574177790"),
-  appId: getConfig('VITE_FIREBASE_APP_ID', "1:195574177790:web:541f5d7c7893eead486aaf")
-});
+const apiKey = getConfig('VITE_FIREBASE_API_KEY', "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8");
+const isMockKey = apiKey === "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8" || apiKey.includes("AIzaSy");
 
-const messaging = firebase.messaging();
+let messaging = null;
 
-messaging.onBackgroundMessage((payload) => {
-  console.log("[firebase-messaging-sw.js] Received background message ", payload);
-  const notificationTitle = payload.notification ? payload.notification.title : "Emergency Blood Needed!";
-  const notificationOptions = {
-    body: payload.notification ? payload.notification.body : "",
-    icon: "/logo.png",
-    data: payload.data || {}
-  };
+if (isMockKey) {
+  console.warn("⚠️ FCM Service Worker bypassed: Valid API key is missing or invalid.");
+} else {
+  firebase.initializeApp({
+    apiKey,
+    authDomain: getConfig('VITE_FIREBASE_AUTH_DOMAIN', "erythronet-emergency-blood-net.firebaseapp.com"),
+    projectId: getConfig('VITE_FIREBASE_PROJECT_ID', "erythronet-emergency-blood-net"),
+    storageBucket: getConfig('VITE_FIREBASE_STORAGE_BUCKET', "erythronet-emergency-blood-net.firebasestorage.app"),
+    messagingSenderId: getConfig('VITE_FIREBASE_MESSAGING_SENDER_ID', "195574177790"),
+    appId: getConfig('VITE_FIREBASE_APP_ID', "1:195574177790:web:541f5d7c7893eead486aaf")
+  });
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
+  messaging = firebase.messaging();
+}
+
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
+    console.log("[firebase-messaging-sw.js] Received background message ", payload);
+    const notificationTitle = payload.notification ? payload.notification.title : "Emergency Blood Needed!";
+    const notificationOptions = {
+      body: payload.notification ? payload.notification.body : "",
+      icon: "/logo.png",
+      data: payload.data || {}
+    };
+
+    self.registration.showNotification(notificationTitle, notificationOptions);
+  });
+}
 
 self.addEventListener('notificationclick', (event) => {
   console.log('[firebase-messaging-sw.js] Notification clicked.', event);

@@ -3,9 +3,12 @@ import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 
+const providedApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const isMockKey = !providedApiKey || providedApiKey === "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8" || providedApiKey.includes("AIzaSy");
+
 // Firebase configuration using Vite environment variables or default fallbacks
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
+    apiKey: providedApiKey || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "erythronet-emergency-blood-net.firebaseapp.com",
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "erythronet-emergency-blood-net",
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "erythronet-emergency-blood-net.firebasestorage.app",
@@ -42,8 +45,10 @@ import { donorsApi } from '../../lib/api';
 export let messaging: Messaging | null = null;
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   try {
-    if (app) {
+    if (app && !isMockKey) {
       messaging = getMessaging(app);
+    } else {
+      console.warn("⚠️ FCM Messaging bypassed: Valid VITE_FIREBASE_API_KEY is missing or invalid.");
     }
   } catch (err) {
     console.warn("⚠️ FCM Messaging unavailable in current browser context:", err);
