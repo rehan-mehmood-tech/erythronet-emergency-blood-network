@@ -2,9 +2,12 @@
   "name": "erythronet-monorepo",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter frontend dev",
-    "build": "pnpm --filter frontend build",
-    "preview": "pnpm --filter frontend preview",
-    "format": "pnpm --filter frontend format"
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "format": "npm --prefix frontend run format"
+  },
+  "dependencies": {
+    "firebase": "^12.17.1"
   }
 }

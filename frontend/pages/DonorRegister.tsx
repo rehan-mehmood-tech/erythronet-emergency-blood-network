@@ -1,18 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle, Droplets } from 'lucide-react'
 import BloodGroupSelector from '../components/BloodGroupSelector'
 import { backend } from '../lib/firebase'
+import { useAuth } from '@/src/context/AuthContext'
 
 const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Peshawar']
 const NOTIF = ['WhatsApp', 'SMS', 'Push Notification', 'Email']
 
 export default function DonorRegister() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [form, setForm] = useState({
     name: '', phone: '', city: '', district: '', bloodGroup: '',
     notifications: [] as string[], lastDonation: '',
   })
+
+  useEffect(() => {
+    if (user && user.displayName && !form.name) {
+      setForm(f => ({ ...f, name: user.displayName || '' }))
+    }
+  }, [user])
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -24,7 +32,7 @@ export default function DonorRegister() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const uid = 'donor-' + Math.random().toString(36).substr(2, 9)
+      const uid = user ? user.uid : 'donor-' + Math.random().toString(36).substr(2, 9)
       await backend.registerDonor({
         uid,
         name: form.name,
@@ -38,6 +46,7 @@ export default function DonorRegister() {
       setSubmitted(true)
     } catch (err) {
       console.error("Donor registration error:", err)
+      alert("Registration failed. Please check your connection and try again.")
     } finally {
       setSubmitting(false)
     }
@@ -53,15 +62,17 @@ export default function DonorRegister() {
           </div>
           <h2 className="text-2xl font-extrabold text-[#171717] mb-2"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Welcome, {form.name.split(' ')[0]}.
+            Congratulations, {form.name.split(' ')[0]}!
           </h2>
-          <p className="text-sm text-[#6B6B6B] mb-2">You're registered as a voluntary donor.</p>
-          <div className="inline-flex items-center gap-2 bg-[#FDE8EA] text-[#C1121F] px-3 py-1.5 rounded-full text-sm font-bold mb-6">
+          <div className="inline-flex items-center gap-2 bg-[#FDE8EA] text-[#C1121F] px-3 py-1.5 rounded-full text-sm font-bold mb-4">
             <span className="text-lg">{form.bloodGroup}</span>
             <span className="text-xs font-semibold">Donor</span>
           </div>
-          <p className="text-xs text-[#969696] mb-6">
-            You'll receive notifications when a matching emergency request is posted in your district.
+          <p className="text-sm text-[#171717] font-medium mb-2">
+            You have registered as a voluntary donor.
+          </p>
+          <p className="text-sm text-[#6B6B6B] mb-6">
+            You will receive notifications for emergency blood requests in your area. Your donation can save a life.
           </p>
           <button onClick={() => navigate('/live-board')} className="btn-primary w-full justify-center py-3">
             View Live Board

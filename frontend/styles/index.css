@@ -115,9 +115,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #FFFFFF;
   border-bottom: 1px solid rgba(240, 217, 220, 0.6);
 }
 
@@ -301,5 +299,14 @@ html.lenis, html.lenis body {
 
 .animate-breath {
   animation: breath 3s ease-in-out infinite;
+}
+
+/* Custom helper classes to override input padding for absolute icons */
+.input-icon-left {
+  padding-left: 2.75rem !important;
+}
+
+.input-icon-right {
+  padding-right: 2.75rem !important;
 }
 

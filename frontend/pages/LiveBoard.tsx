@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Activity, SlidersHorizontal, X } from 'lucide-react'
 import RequestCard from '../components/RequestCard'
 import { backend, requestNotificationPermission } from '../lib/firebase'
@@ -43,20 +44,12 @@ export default function LiveBoard() {
   useEffect(() => {
     requestNotificationPermission();
 
-    // Initial fetch
-    const fetchRequests = async () => {
-      try {
-        const data = await backend.requestsApi.getAll();
-        setRequests(data);
-      } catch (e) {
-        console.error('[LiveBoard] Failed to fetch requests:', e);
-      }
-    };
-    fetchRequests();
+    // Use backend.subscribeToRequests which handles FastAPI polling internally
+    const unsubscribe = backend.subscribeToRequests((data) => {
+      setRequests(data as BloodRequest[]);
+    });
 
-    // Set up polling every 10 seconds
-    const interval = setInterval(fetchRequests, 10000);
-    return () => clearInterval(interval);
+    return () => unsubscribe();
   }, []);
 
 
@@ -173,7 +166,13 @@ export default function LiveBoard() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((r) => (
-              <RequestCard key={r.id} data={r} />
+              <Link
+                key={r.id}
+                to={`/request/${r.id}`}
+                className="block cursor-pointer rounded-[14px] transition-all duration-200 hover:shadow-[0_6px_24px_rgba(193,18,31,0.14)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C1121F]/50"
+              >
+                <RequestCard data={r} />
+              </Link>
             ))}
           </div>
         )}

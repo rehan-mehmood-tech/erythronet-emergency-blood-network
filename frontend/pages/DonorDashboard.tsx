@@ -16,17 +16,23 @@ export default function DonorDashboard() {
     })
   }, [])
 
-  const currentDonor = backend.getCurrentDonor() || {
-    uid: 'donor-123',
-    name: 'Ahmed Khan',
-    phone: '03009999999',
-    city: 'Lahore',
-    district: 'Lahore Cantonment',
-    bloodGroup: 'O+',
-    notifications: ['WhatsApp', 'SMS'],
-    lastDonation: '2026-07-12',
-    totalDonations: 3,
-    registeredAt: Date.now() - 30 * 24 * 60 * 60 * 1000
+  const currentDonor = backend.getCurrentDonor()
+
+  if (!currentDonor) {
+    return (
+      <div className="pt-24 min-h-screen bg-[#FFF7F7] flex flex-col items-center justify-center px-4">
+        <Heart size={48} className="text-[#C1121F] mb-6 opacity-80" />
+        <h1 className="text-2xl font-extrabold text-[#171717] mb-2 text-center" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          Donor Dashboard
+        </h1>
+        <p className="text-[#6B6B6B] mb-8 text-center max-w-sm">
+          Please register as a voluntary blood donor to access your personalized dashboard and track your active commitments.
+        </p>
+        <Link to="/donor/register" className="btn-primary py-3 px-8 text-sm">
+          Become a Donor
+        </Link>
+      </div>
+    )
   }
 
   // Active commitment: status is en-route and accepted by this donor

@@ -3,6 +3,8 @@ import { backend } from '../lib/firebase';
 import { Link } from 'react-router-dom';
 import { BloodRequest } from '../types';
 import InteractiveCard from './InteractiveCard';
+import { useAuth } from '@/src/context/AuthContext';
+import { useProtectedAction } from '@/src/hooks/useProtectedAction';
 
 
 export type RequestStatus = 'awaiting' | 'en-route' | 'fulfilled'
@@ -60,6 +62,8 @@ interface Props {
 }
 
 export default function RequestCard({ data, compact, dark }: Props) {
+  const { user } = useAuth();
+  const protect = useProtectedAction();
   const st = statusConfig[data.status]
   const isCritical = data.urgency === 'critical' && data.status === 'awaiting'
   const time = ('timeAgo' in data && data.timeAgo) ? data.timeAgo : formatTimeAgo(data.createdAt)
@@ -157,19 +161,31 @@ export default function RequestCard({ data, compact, dark }: Props) {
             </div>
             {data.status === 'awaiting' && (
               <button
-                className="bg-[#C1121F] text-white hover:bg-[#9E1622] shadow-[0_0_12px_rgba(193,18,31,0.4)] py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 inline-flex items-center gap-1.5"
+                className="bg-[#C1121F] text-white hover:bg-[#9E1622] shadow-[0_0_12px_rgba(193,18,31,0.4)] py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 inline-flex items-center gap-1.5 cursor-pointer"
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (!backend.getCurrentDonor) {
-                    const demoDonor = { uid: 'donor-demo', name: 'Demo Donor' } as any;
-                    await backend.registerDonor(demoDonor);
-                  }
-                  const donor = backend.getCurrentDonor();
-                  const eta = '30 min';
-                  await backend.acceptRequest(data.id, donor?.name || 'Demo Donor', eta, donor?.uid || 'donor-demo');
-                  data.status = 'en-route';
-                  data.donorName = donor?.name || 'Demo Donor';
-                  data.donorEta = eta;
+                  protect(async () => {
+                    if (!user) return;
+                    const donor = backend.getCurrentDonor() || {
+                      uid: user.uid,
+                      name: user.displayName || user.email?.split('@')[0] || 'Authenticated Donor',
+                      phone: '03001234567',
+                      city: 'Lahore',
+                      district: 'Lahore Cantonment',
+                      bloodGroup: 'O+',
+                      notifications: [],
+                      totalDonations: 0,
+                      registeredAt: Date.now()
+                    };
+                    if (!backend.getCurrentDonor()) {
+                      await backend.registerDonor(donor);
+                    }
+                    const eta = '30 min';
+                    await backend.acceptRequest(data.id, donor.name, eta, donor.uid);
+                    data.status = 'en-route';
+                    data.donorName = donor.name;
+                    data.donorEta = eta;
+                  }, `/request/${data.id}`);
                 }}
               >
                 <Heart size={12} strokeWidth={2} />

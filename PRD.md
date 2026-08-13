@@ -78,14 +78,14 @@ WHO Blood Safety programme data for Pakistan documents that as recently as 2012,
 
 ### 1.4 Root Cause Analysis
 
-The verified statistics above expose two compounding systemic failures that RaktSetu directly targets:
+The verified statistics above expose two compounding systemic failures that Erythronet directly targets:
 
 ```
 MACRO FAILURE (cannot fix with software alone):
   ├── Insufficient total voluntary blood donations (2.7M collected vs 5M needed)
   └── 82% family-donor dependency = structural inequality in access
 
-MICRO FAILURE (directly addressable by RaktSetu):
+MICRO FAILURE (directly addressable by Erythronet):
   ├── No real-time, district-level visibility of active blood requests
   ├── No structured matching between urgent requests and available nearby donors
   ├── No status confirmation mechanism (Donor En Route / Fulfilled)
@@ -93,13 +93,13 @@ MICRO FAILURE (directly addressable by RaktSetu):
   └── WhatsApp noise creates donor fatigue and erodes response rates
 ```
 
-RaktSetu operates entirely within the **micro failure layer** — it does not claim to solve the national donation deficit. It claims to **eliminate the coordination tax** that wastes the blood that does exist, while simultaneously providing a structured, trustworthy channel that encourages the voluntary donor community to remain engaged and responsive.
+ErythroNet operates entirely within the **micro failure layer** — it does not claim to solve the national donation deficit. It claims to **eliminate the coordination tax** that wastes the blood that does exist, while simultaneously providing a structured, trustworthy channel that encourages the voluntary donor community to remain engaged and responsive.
 
 ---
 
 ## 2. Solution Definition (Part 2)
 
-RaktSetu is a verified, real-time emergency blood request and donor coordination web platform built in Next.js 15, designed to serve three primary user groups in Pakistan's three largest cities: **patient attendants** who need to rapidly broadcast a verified emergency blood request with a clear hospital location and blood group specification; **registered voluntary donors** who want to respond to nearby verified requests without wading through unstructured WhatsApp chaos; and **hospital staff or blood bank coordinators** who need a transparent, district-level view of active requests and response status. The platform works by replacing the WhatsApp broadcast model with a structured **Live Request Board** — a publicly visible, real-time feed of verified active blood requests, filterable by city district, blood group, and urgency level, where every request has been validated through a mandatory hospital slip upload and phone OTP verification step, preventing the fraud and trust erosion that currently desensitises donors to genuine appeals. Technology makes sense here for a specific and demonstrable reason: the bottleneck is not the absence of willing donors — it is the absence of a reliable, low-friction channel through which those donors can find, verify, and commit to a specific nearby request in under two minutes, receive a Donor En Route confirmation that prevents duplicate travel, and close the loop with a Fulfilled status that removes the request from the board so the next emergency gets full community attention. WhatsApp cannot provide structured fields, status states, verification, or a searchable board — it is a messaging app being used as an emergency dispatch system, and it fails at that function. RaktSetu specifically targets the coordination root cause by introducing: (a) request verification that builds donor trust, (b) a "Donor Accepted" status lock that prevents the double-travel problem and gives the patient family a confirmed ETA, and (c) a public transparency dashboard that shows real response times and fulfilled requests, creating a feedback loop that grows the engaged voluntary donor community over time through visible proof of impact.
+ErythroNet is a verified, real-time emergency blood request and donor coordination web platform built in Next.js 15, designed to serve three primary user groups in Pakistan's three largest cities: **patient attendants** who need to rapidly broadcast a verified emergency blood request with a clear hospital location and blood group specification; **registered voluntary donors** who want to respond to nearby verified requests without wading through unstructured WhatsApp chaos; and **hospital staff or blood bank coordinators** who need a transparent, district-level view of active requests and response status. The platform works by replacing the WhatsApp broadcast model with a structured **Live Request Board** — a publicly visible, real-time feed of verified active blood requests, filterable by city district, blood group, and urgency level, where every request has been validated through a mandatory hospital slip upload and phone OTP verification step, preventing the fraud and trust erosion that currently desensitises donors to genuine appeals. Technology makes sense here for a specific and demonstrable reason: the bottleneck is not the absence of willing donors — it is the absence of a reliable, low-friction channel through which those donors can find, verify, and commit to a specific nearby request in under two minutes, receive a Donor En Route confirmation that prevents duplicate travel, and close the loop with a Fulfilled status that removes the request from the board so the next emergency gets full community attention. WhatsApp cannot provide structured fields, status states, verification, or a searchable board — it is a messaging app being used as an emergency dispatch system, and it fails at that function. ErythroNet specifically targets the coordination root cause by introducing: (a) request verification that builds donor trust, (b) a "Donor Accepted" status lock that prevents the double-travel problem and gives the patient family a confirmed ETA, and (c) a public transparency dashboard that shows real response times and fulfilled requests, creating a feedback loop that grows the engaged voluntary donor community over time through visible proof of impact.
 
 ---
 

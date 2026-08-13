@@ -1,0 +1,9 @@
+{
+  "name": "erythronet-backend",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "python run.py",
+    "start": "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+  }
+}

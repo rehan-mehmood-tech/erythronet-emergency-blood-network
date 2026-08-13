@@ -15,6 +15,8 @@ import Auralis from '../components/ui/auralis'
 import GradientBlobCard from '../components/ui/gradient-bold-card'
 import MythsSection from '../components/MythsSection'
 import { Typewriter } from '../components/ui/typewriter'
+import { useAuth } from '@/src/context/AuthContext'
+import { useProtectedAction } from '@/src/hooks/useProtectedAction'
 
 function StatCard({ num, suffix, label, sub }: {
   num: number; suffix?: string; label: string; sub: string
@@ -134,6 +136,8 @@ const mapRawRequest = (r: any) => ({
 
 export default function Landing() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const protect = useProtectedAction()
   const [requests, setRequests] = useState<any[]>([])
   const [previewRequests, setPreviewRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -260,24 +264,24 @@ export default function Landing() {
 
               <motion.div variants={fadeUpVariants} className="flex flex-col sm:flex-row gap-3 mb-10">
                 <MagneticButton>
-                  <Link
-                    to="/request/new"
-                    className="inline-flex items-center justify-center gap-2 bg-white text-[#C1121F] font-bold text-sm px-6 py-3.5 rounded-[10px] transition-all hover:bg-[#FDE8EA]"
+                  <button
+                    onClick={() => protect(() => navigate('/request/new'))}
+                    className="inline-flex items-center justify-center gap-2 bg-white text-[#C1121F] font-bold text-sm px-6 py-3.5 rounded-[10px] transition-all hover:bg-[#FDE8EA] cursor-pointer"
                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                   >
                     <Activity size={16} strokeWidth={2.5} />
                     Request Emergency Blood
-                  </Link>
+                  </button>
                 </MagneticButton>
                 <MagneticButton>
-                  <Link
-                    to="/donor/register"
-                    className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold text-sm px-6 py-3.5 rounded-[10px] transition-all hover:bg-white/10"
+                  <button
+                    onClick={() => protect(() => navigate('/donor/register'))}
+                    className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold text-sm px-6 py-3.5 rounded-[10px] transition-all hover:bg-white/10 cursor-pointer"
                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                   >
                     Become a Donor
                     <ArrowRight size={15} strokeWidth={2} />
-                  </Link>
+                  </button>
                 </MagneticButton>
               </motion.div>
 
@@ -296,7 +300,22 @@ export default function Landing() {
             </motion.div>
 
             {/* Right: Floating request card stack */}
-            <motion.div variants={fadeUpVariants} className="hidden lg:flex justify-center items-center relative">
+            <motion.div variants={fadeUpVariants} className="hidden lg:flex flex-col justify-center items-center relative gap-4">
+              {user && (
+                <div 
+                  className="w-full max-w-sm bg-neutral-900/60 backdrop-blur-md border border-[#C1121F]/30 rounded-2xl p-4 flex flex-col items-start gap-1"
+                  style={{ boxShadow: '0 8px 32px rgba(193, 18, 31, 0.15)' }}
+                >
+                  <div className="flex items-center gap-2 text-red-400 text-xs font-bold uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#C1121F] animate-pulse" />
+                    Verified Member
+                  </div>
+                  <p className="text-xs font-medium text-white/90 leading-relaxed">
+                    Welcome back, <span className="font-bold text-red-400">{user.displayName || user.email?.split('@')[0]}</span>! 🩸 Ready to save a life today or manage your emergency requests?
+                  </p>
+                </div>
+              )}
+              
               <div className="relative w-full max-w-sm cursor-pointer" onClick={() => setActiveIndex((prev) => (prev + 1) % mockRequests.length)}>
                 {/* Stack Layer 2 (Deep Back) */}
                 <div className="absolute top-4 left-4 h-full w-full rounded-2xl bg-red-950/40 border border-red-800/20 shadow-lg transform rotate-6 scale-95 transition-all duration-300 pointer-events-none" />
@@ -329,9 +348,12 @@ export default function Landing() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/request/${mockRequests[activeIndex].id}`);
+                        protect(
+                          () => navigate(`/request/${mockRequests[activeIndex].id}`),
+                          `/request/${mockRequests[activeIndex].id}`
+                        );
                       }}
-                      className="rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 text-xs font-medium text-white shadow-md transition-colors"
+                      className="rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 text-xs font-medium text-white shadow-md transition-colors cursor-pointer"
                     >
                       I Will Donate
                     </button>

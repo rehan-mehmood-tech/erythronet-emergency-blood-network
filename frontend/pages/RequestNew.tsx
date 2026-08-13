@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CheckCircle, Upload, X, Activity } from 'lucide-react'
 import BloodGroupSelector from '../components/BloodGroupSelector'
-import { backend } from '../lib/firebase'
+import { backend } from '@/lib/firebase'
+import { auth } from '@/src/lib/firebase'
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 
 const STEPS = ['01 PATIENT', '02 VERIFY', '03 DOCUMENT', '04 REVIEW']
 
@@ -56,6 +58,11 @@ export default function RequestNew() {
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
 
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<any>(null)
+  const [confirmationResult, setConfirmationResult] = useState<any>(null)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
+
   const setField = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleOtpChange = (i: number, v: string) => {
@@ -69,15 +76,106 @@ export default function RequestNew() {
     }
   }
 
-  const verifyOtp = () => {
-    const code = form.otp.join('')
-    if (code === '123456') {
-      setField('otpVerified', true)
-      setOtpError(false)
-    } else {
-      setOtpError(true)
+  const initRecaptcha = () => {
+    if (!auth) {
+      console.warn("⚠️ Firebase Auth is not initialized. Recaptcha cannot be set up.");
+      return;
     }
-  }
+    try {
+      if ((window as any).recaptchaVerifier) {
+        (window as any).recaptchaVerifier.clear();
+      }
+      
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {}
+      });
+      (window as any).recaptchaVerifier = verifier;
+      setRecaptchaVerifier(verifier);
+    } catch (error) {
+      console.error("RecaptchaVerifier initialization failed:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (step === 1) {
+      const timer = setTimeout(() => {
+        initRecaptcha();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
+
+  const formatPhoneNumber = (num: string) => {
+    const clean = num.replace(/\D/g, '');
+    if (clean.startsWith('0')) {
+      return '+92' + clean.slice(1);
+    }
+    if (clean.startsWith('92')) {
+      return '+' + clean;
+    }
+    return '+' + clean;
+  };
+
+  const sendOtpCode = async () => {
+    if (!auth) {
+      alert("Firebase Auth is not initialized. Please verify your environment configuration.");
+      return;
+    }
+    if (!form.phone) return;
+    
+    setSendingOtp(true);
+    setOtpError(false);
+    
+    try {
+      const formatted = formatPhoneNumber(form.phone);
+      let verifier = recaptchaVerifier;
+      if (!verifier) {
+        initRecaptcha();
+        verifier = (window as any).recaptchaVerifier;
+      }
+      if (!verifier) throw new Error("reCAPTCHA verifier is not initialized.");
+      
+      const confirmation = await signInWithPhoneNumber(auth, formatted, verifier);
+      setConfirmationResult(confirmation);
+      setOtpSent(true);
+    } catch (err: any) {
+      console.error("Error sending OTP:", err);
+      alert(`Failed to send SMS OTP: ${err.message || err}`);
+      if (err.code === 'auth/invalid-app-credential' || err.code === 'auth/captcha-check-failed') {
+        initRecaptcha();
+      }
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const verifyOtpCode = async () => {
+    if (!confirmationResult) {
+      alert("No active verification session. Please request a new code.");
+      return;
+    }
+    const code = form.otp.join('');
+    if (code.length !== 6) {
+      alert("Please enter the complete 6-digit code.");
+      return;
+    }
+    
+    setVerifyingOtp(true);
+    setOtpError(false);
+    
+    try {
+      await confirmationResult.confirm(code);
+      setField('otpVerified', true);
+    } catch (err: any) {
+      console.error("Error verifying OTP:", err);
+      setOtpError(true);
+      alert(`Invalid OTP code: ${err.message || err}`);
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
 
   const handlePublish = async () => {
     setPublishing(true)
@@ -105,8 +203,11 @@ export default function RequestNew() {
 
       await backend.createRequest(requestPayload, selectedFile)
       setPublished(true)
+      // Navigate to live board after a brief moment to show success animation
+      setTimeout(() => navigate('/live-board'), 1500)
     } catch (err) {
       console.error("Publish request error:", err)
+      alert("Failed to publish request. Please check your connection and try again.")
     } finally {
       setPublishing(false)
     }
@@ -258,13 +359,23 @@ export default function RequestNew() {
                   onChange={(e) => setField('phone', e.target.value)} />
               </div>
 
+              {/* Invisible Recaptcha Container */}
+              <div id="recaptcha-container"></div>
+
               {!otpSent ? (
                 <button
-                  onClick={() => setOtpSent(true)}
-                  disabled={!form.phone}
-                  className="btn-primary w-full justify-center py-3 disabled:opacity-50"
+                  onClick={sendOtpCode}
+                  disabled={!form.phone || sendingOtp}
+                  className="btn-primary w-full justify-center py-3 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                 >
-                  Send OTP
+                  {sendingOtp ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending OTP...
+                    </>
+                  ) : (
+                    'Send OTP'
+                  )}
                 </button>
               ) : (
                 <div>
@@ -286,7 +397,6 @@ export default function RequestNew() {
                       />
                     ))}
                   </div>
-                  <p className="text-[11px] text-[#969696] text-center mb-4">Enter 123456 to verify (demo)</p>
                   {otpError && (
                     <div className="bg-[#FDE8EA] border border-[#F0D9DC] rounded-xl p-3 mb-3 text-xs text-[#C1121F] font-medium text-center">
                       Incorrect code. Please try again.
@@ -298,8 +408,19 @@ export default function RequestNew() {
                       Phone verified
                     </div>
                   ) : (
-                    <button onClick={verifyOtp} className="btn-primary w-full justify-center py-3">
-                      Verify Code
+                    <button
+                      onClick={verifyOtpCode}
+                      disabled={verifyingOtp || form.otp.join('').length !== 6}
+                      className="btn-primary w-full justify-center py-3 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      {verifyingOtp ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        'Verify Code'
+                      )}
                     </button>
                   )}
                 </div>

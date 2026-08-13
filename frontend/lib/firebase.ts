@@ -47,7 +47,8 @@ export const requestNotificationPermission = async () => {
   return null;
 };
 
-const isFirebaseConfigured = true;
+// Set false to route all operations through FastAPI/SQLite (Firebase Storage CORS not configured)
+const isFirebaseConfigured = false;
 let db: any = null;
 let auth: any = null;
 let storage: any = null;
@@ -56,9 +57,8 @@ try {
   db = getFirestore(app);
   auth = getAuth(app);
   storage = getStorage(app);
-  console.log("🔥 ErythroNet successfully initialized real Firebase & FCM Messaging services.");
 } catch (error) {
-  console.error("❌ Firebase initialization warning:", error);
+  console.warn("⚠️ Firebase service initialization failed:", error);
 }
 
 // ==========================================
@@ -230,8 +230,8 @@ export const backend = {
           reqs.push({ id: doc.id, ...doc.data() } as BloodRequest);
         });
         callback(reqs as BloodRequest[]);
-      }, (error) => {
-        console.error("Firestore listener error, switching to FastAPI polling:", error);
+      }, (_error) => {
+        // Firestore listener failed — silently fall back to FastAPI polling
         return pollRequests(callback as any);
       });
     } else {
@@ -250,15 +250,25 @@ export const backend = {
     slipFile: File | null
   ): Promise<string> => {
     if (isFirebaseConfigured && db && storage) {
-      // Firebase path (only if fully configured)
+      // Firebase path (only if fully configured with CORS & Storage rules)
       const id = 'req-' + Math.random().toString(36).substr(2, 9);
       let slipUrl = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80';
       if (slipFile) {
         try {
-          const fileRef = ref(storage, `slips/${id}/${slipFile.name}`);
-          const snap = await uploadBytes(fileRef, slipFile);
-          slipUrl = await getDownloadURL(snap.ref);
-        } catch { slipUrl = URL.createObjectURL(slipFile); }
+          // 5-second timeout on Storage upload to prevent indefinite hang
+          const uploadPromise = (async () => {
+            const fileRef = ref(storage, `slips/${id}/${slipFile.name}`);
+            const snap = await uploadBytes(fileRef, slipFile);
+            return await getDownloadURL(snap.ref);
+          })();
+          const timeoutPromise = new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('Storage upload timeout')), 5000)
+          );
+          slipUrl = await Promise.race([uploadPromise, timeoutPromise]);
+        } catch (uploadErr) {
+          console.warn('⚠️ Firebase Storage upload failed/timed out, proceeding without slip URL:', uploadErr);
+          slipUrl = slipFile ? URL.createObjectURL(slipFile) : slipUrl;
+        }
       }
       const newReq: BloodRequest = { ...requestData, id, slipUrl, status: 'awaiting', createdAt: Date.now() };
       await setDoc(doc(db, 'requests', id), newReq);
@@ -279,7 +289,6 @@ export const backend = {
       medical_context: requestData.medicalContext || 'General Emergency',
     };
     const id = await requestsApi.create(fields, slipFile);
-    console.log(`📣 [FastAPI] Request ${id} created and saved to SQLite.`);
     return id;
   },
 

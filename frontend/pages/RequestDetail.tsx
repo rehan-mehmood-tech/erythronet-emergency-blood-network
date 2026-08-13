@@ -7,6 +7,8 @@ import {
 import { backend } from '../lib/firebase'
 import { BloodRequest } from '../types'
 import { formatTimeAgo } from '../components/RequestCard'
+import { useAuth } from '@/src/context/AuthContext'
+import { useProtectedAction } from '@/src/hooks/useProtectedAction'
 
 const ETA_OPTIONS = ['15 min', '30 min', '45 min', '60 min', '90 min']
 
@@ -45,6 +47,8 @@ function CountdownRing({ seconds }: { seconds: number }) {
 
 export default function RequestDetail() {
   const { id } = useParams()
+  const { user } = useAuth()
+  const protect = useProtectedAction()
   const [requests, setRequests] = useState<BloodRequest[]>([])
   const [showModal, setShowModal] = useState(false)
   const [selectedEta, setSelectedEta] = useState('')
@@ -83,12 +87,12 @@ export default function RequestDetail() {
   }
 
   const handleConfirm = async () => {
-    if (!request) return
+    if (!request || !user) return
     setConfirming(true)
     try {
       const donor = currentDonor || {
-        uid: 'donor-demo',
-        name: 'Demo Donor',
+        uid: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || 'Authenticated Donor',
         phone: '03001234567',
         city: 'Lahore',
         district: 'Lahore Cantonment',
@@ -98,7 +102,7 @@ export default function RequestDetail() {
         registeredAt: Date.now()
       }
       
-      // If no donor registered/logged-in, log in the demo donor
+      // If no donor profile has been registered yet, register this default profile
       if (!currentDonor) {
         await backend.registerDonor(donor)
       }
@@ -291,8 +295,8 @@ export default function RequestDetail() {
                       <p className="text-sm text-[#6B6B6B]">Waiting for a nearby voluntary donor.</p>
                     </div>
                     <button
-                      onClick={() => setShowModal(true)}
-                      className="btn-primary w-full justify-center py-3.5 text-sm rounded-xl"
+                      onClick={() => protect(() => setShowModal(true))}
+                      className="btn-primary w-full justify-center py-3.5 text-sm rounded-xl cursor-pointer"
                     >
                       <Heart size={16} strokeWidth={2} />
                       I Will Donate
@@ -318,7 +322,7 @@ export default function RequestDetail() {
                     </p>
                     
                     {/* Actions panel: visible to assigned donor, or open for demo mode if no donor is logged in */}
-                    {(!currentDonor || currentDonor.uid === request.acceptedByDonorId) ? (
+                    {(!user || user.uid === request.acceptedByDonorId) ? (
                       <div className="space-y-2 mt-4 pt-4 border-t border-[#E8E8E8]">
                         <button
                           onClick={handleFulfill}

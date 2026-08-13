@@ -1,15 +1,54 @@
 /**
  * ErythroNet API Client
- * Connects the frontend to the FastAPI/SQLite backend at http://localhost:8000
- * All data is now persisted in erythronet.db (SQLite) via FastAPI.
+ * Primary: VITE_API_URL env var or http://localhost:8000
+ * Fallback: Live Render backend if localhost is unreachable
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const RENDER_URL = 'https://erythronet-emergency-blood-network.onrender.com';
+const LOCAL_URL = 'http://localhost:8000';
+
+// Resolved once at startup — avoids per-request overhead
+let resolvedBaseUrl: string | null = null;
+let baseUrlResolutionPromise: Promise<string> | null = null;
+
+async function resolveBaseUrl(): Promise<string> {
+  // Already resolved
+  if (resolvedBaseUrl) return resolvedBaseUrl;
+
+  // Env var wins unconditionally
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (envUrl) {
+    resolvedBaseUrl = envUrl.replace(/\/$/, '');
+    return resolvedBaseUrl;
+  }
+
+  // Try localhost first (dev mode); fall back to Render silently
+  try {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), 2500);
+    await fetch(`${LOCAL_URL}/api/requests/`, { signal: ctrl.signal, method: 'HEAD' });
+    clearTimeout(id);
+    resolvedBaseUrl = LOCAL_URL;
+  } catch {
+    // Localhost unreachable — use Render live backend silently
+    resolvedBaseUrl = RENDER_URL;
+  }
+
+  return resolvedBaseUrl;
+}
+
+// Kick off resolution immediately so the first real call is fast
+baseUrlResolutionPromise = resolveBaseUrl();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const base = await baseUrlResolutionPromise!;
+  // Avoid double slashes: strip trailing slash from base, ensure path starts with /
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${base}${cleanPath}`;
+
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   });
@@ -66,7 +105,7 @@ export const requestsApi = {
   /** Fetch all blood requests (with optional filters) */
   getAll: async (params?: { city?: string; blood_group?: string; status?: string }) => {
     const qs = new URLSearchParams(params as any).toString();
-    const data = await apiFetch<any[]>(`/api/requests/${qs ? `?${qs}` : ''}`);
+    const data = await apiFetch<any[]>(`/api/requests${qs ? `?${qs}` : ''}`);
     return data.map(mapRequest);
   },
 
@@ -78,11 +117,12 @@ export const requestsApi = {
 
   /** Create a new emergency request (multipart/form-data for file upload) */
   create: async (fields: Record<string, string | number>, slipFile: File | null): Promise<string> => {
+    const base = await baseUrlResolutionPromise!;
     const form = new FormData();
     Object.entries(fields).forEach(([k, v]) => form.append(k, String(v)));
     if (slipFile) form.append('slip_file', slipFile);
 
-    const res = await fetch(`${BASE_URL}/api/requests/`, {
+    const res = await fetch(`${base}/api/requests/`, {
       method: 'POST',
       body: form,
     });
@@ -162,27 +202,51 @@ export const metricsApi = {
 /**
  * Poll the backend for requests every intervalMs milliseconds.
  * Returns an unsubscribe function, mimicking the Firebase onSnapshot API.
+ *
+ * Implements exponential back-off on consecutive failures so the browser
+ * console stays quiet when the local server is offline:
+ *   attempt 1 fail → wait baseMs
+ *   attempt 2 fail → wait baseMs * 2
+ *   attempt N fail → wait min(baseMs * 2^N, maxMs)
+ * Resets to baseMs the moment a request succeeds again.
  */
 export function pollRequests(
   callback: (requests: ReturnType<typeof mapRequest>[]) => void,
-  intervalMs = 5000,
+  baseMs = 5000,
+  maxMs = 60_000,
 ): () => void {
   let active = true;
+  let consecutiveFailures = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
-  const fetch_ = async () => {
+  const scheduleNext = (delayMs: number) => {
+    if (!active) return;
+    timer = setTimeout(tick, delayMs);
+  };
+
+  const tick = async () => {
+    if (!active) return;
     try {
       const data = await requestsApi.getAll();
-      if (active) callback(data);
-    } catch (e) {
-      console.error('[ErythroNet] Polling error:', e);
+      if (!active) return;
+      consecutiveFailures = 0; // reset backoff on success
+      callback(data);
+      scheduleNext(baseMs);
+    } catch {
+      // Only warn on the first failure in an offline streak
+      if (consecutiveFailures === 0) {
+        console.warn('[ErythroNet] Backend unreachable — polling with back-off. Will resume silently.');
+      }
+      consecutiveFailures++;
+      const backoff = Math.min(baseMs * Math.pow(2, consecutiveFailures), maxMs);
+      scheduleNext(backoff);
     }
   };
 
-  fetch_(); // immediate first call
-  const timer = setInterval(fetch_, intervalMs);
+  tick(); // immediate first call
 
   return () => {
     active = false;
-    clearInterval(timer);
+    if (timer !== null) clearTimeout(timer);
   };
 }

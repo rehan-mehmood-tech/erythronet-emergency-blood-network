@@ -5,6 +5,22 @@ import './styles/index.css'
 import { messaging, requestNotificationPermission } from './lib/firebase'
 import { onMessage } from 'firebase/messaging'
 
+// ─── Suppress noisy background errors ────────────────────────────────────────
+// Catches unhandled promise rejections from background polling,
+// MaxMind GeoIP CORS errors, and ERR_CONNECTION_REFUSED traces.
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  const msg: string = event.reason?.message ?? String(event.reason ?? '');
+  const isNetworkNoise =
+    msg.includes('Failed to fetch') ||
+    msg.includes('ERR_CONNECTION_REFUSED') ||
+    msg.includes('geoip.maxmind.com') ||
+    msg.includes('NetworkError');
+
+  if (isNetworkNoise) {
+    event.preventDefault(); // Suppress the browser console red trace
+  }
+});
+
 // Register Firebase Messaging Service Worker
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   navigator.serviceWorker

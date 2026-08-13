@@ -45,3 +45,6 @@ Thumbs.db
 
 # Design tool cache
 .figma/
+
+.vercel
+.env*

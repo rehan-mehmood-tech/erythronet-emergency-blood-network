@@ -2,18 +2,37 @@ import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
 
-import siteConfiguration from '../.figma/make/site.json'
+// Inline fallback — .figma/ is gitignored and absent on Vercel
+const FALLBACK_SITE_CONFIG = {
+  title: 'ErythroNet | Urban Emergency Blood Network',
+  description: 'Pakistan\'s first real-time emergency blood network connecting verified donors with hospitals.',
+  icons: { icon: '/logo.png' },
+  robots: { index: false },
+  accessibility: { addBypassLinks: false, ignoreReducedMotion: false },
+}
+
+function loadSiteConfig() {
+  const configPath = path.resolve(__dirname, '../.figma/make/site.json')
+  try {
+    if (existsSync(configPath)) {
+      return JSON.parse(readFileSync(configPath, 'utf-8'))
+    }
+  } catch { /* fall through */ }
+  return FALLBACK_SITE_CONFIG
+}
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
+  const siteConfiguration = loadSiteConfig()
 
   return {
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
     build: {
-      outDir: '../dist',
+      outDir: 'dist',
       emptyOutDir: true,
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,

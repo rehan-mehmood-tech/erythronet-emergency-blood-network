@@ -74,8 +74,31 @@ class DonorResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# Metrics Schema
+class CityData(BaseModel):
+    city: str
+    count: int
+    pct: int
+
+class BloodData(BaseModel):
+    group: str
+    demand: int
+    donors: int
+
+class MonthlyData(BaseModel):
+    month: str
+    count: int
+
+class DistrictData(BaseModel):
+    rank: str
+    district: str
+    count: int
+    city: str
+
 class MetricsResponse(BaseModel):
     total_fulfilled: int
     total_donors: int
     avg_response_minutes: int
+    city_data: List[CityData]
+    blood_data: List[BloodData]
+    monthly_data: List[MonthlyData]
+    top_districts: List[DistrictData]
