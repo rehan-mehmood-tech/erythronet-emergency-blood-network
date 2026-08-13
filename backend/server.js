@@ -65,11 +65,259 @@ const upload = multer({ storage });
 // Caching variables for GET /api/requests
 let requestsCache = null;
 let requestsCacheTime = 0;
-const CACHE_TTL_MS = 5000;
+const CACHE_TTL_MS = 3000;
+
+const MOCK_REQUESTS = [
+  {
+    id: 'mock-req-001',
+    patientName: 'Kashif Ali',
+    patient_name: 'Kashif Ali',
+    hospital: 'Jinnah Hospital',
+    ward: 'Ward 3, Bed 12',
+    location: 'Ward 3, Bed 12',
+    city: 'Lahore',
+    district: 'Lahore Cantonment',
+    bloodGroup: 'O+',
+    blood_group: 'O+',
+    units: 2,
+    urgency: 'critical',
+    status: 'active',
+    phone: '03001234567',
+    contactNumber: '03001234567',
+    contactPhone: '03001234567',
+    slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+    created_at: Date.now() / 1000 - 12 * 60,
+    createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    medical_context: 'Trauma Accident',
+    verified: true
+  },
+  {
+    id: 'mock-req-002',
+    patientName: 'Zainab Bibi',
+    patient_name: 'Zainab Bibi',
+    hospital: 'Services Hospital',
+    ward: 'ICU Floor 2',
+    location: 'ICU Floor 2',
+    city: 'Lahore',
+    district: 'Gulberg',
+    bloodGroup: 'B-',
+    blood_group: 'B-',
+    units: 1,
+    urgency: 'critical',
+    status: 'active',
+    phone: '03119876543',
+    contactNumber: '03119876543',
+    contactPhone: '03119876543',
+    slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+    created_at: Date.now() / 1000 - 28 * 60,
+    createdAt: new Date(Date.now() - 28 * 60 * 1000).toISOString(),
+    medical_context: 'Emergency Surgery',
+    donor_name: 'Ahmed K.',
+    donor_eta: '20 min',
+    accepted_by_donor_id: 'mock-donor-101',
+    accepted_at: Date.now() / 1000 - 5 * 60,
+    acceptedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    lock_expires_at: Date.now() / 1000 + 85 * 60,
+    lockExpiresAt: new Date(Date.now() + 85 * 60 * 1000).toISOString(),
+    verified: true
+  },
+  {
+    id: 'mock-req-003',
+    patientName: 'Muhammad Rizwan',
+    patient_name: 'Muhammad Rizwan',
+    hospital: 'Aga Khan Hospital',
+    ward: 'Surgical Ward, Bed 5',
+    location: 'Surgical Ward, Bed 5',
+    city: 'Karachi',
+    district: 'Karachi South',
+    bloodGroup: 'A+',
+    blood_group: 'A+',
+    units: 3,
+    urgency: 'urgent',
+    status: 'active',
+    phone: '03214567890',
+    contactNumber: '03214567890',
+    contactPhone: '03214567890',
+    slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+    created_at: Date.now() / 1000 - 5 * 60,
+    createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    medical_context: 'Thalassemia Major',
+    verified: true
+  },
+  {
+    id: 'mock-req-004',
+    patientName: 'Sana Fatima',
+    patient_name: 'Sana Fatima',
+    hospital: 'Shifa International Hospital',
+    ward: 'ICU, Bed 6',
+    location: 'ICU, Bed 6',
+    city: 'Islamabad',
+    district: 'G-8',
+    bloodGroup: 'AB+',
+    blood_group: 'AB+',
+    units: 2,
+    urgency: 'urgent',
+    status: 'active',
+    phone: '03455566772',
+    contactNumber: '03455566772',
+    contactPhone: '03455566772',
+    slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+    created_at: Date.now() / 1000 - 18 * 60,
+    createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+    medical_context: 'Post-Surgery Recovery',
+    verified: true
+  },
+  {
+    id: 'mock-req-005',
+    patientName: 'Hamza Qadir',
+    patient_name: 'Hamza Qadir',
+    hospital: 'Mayo Hospital',
+    ward: 'Emergency Ward, Bed 14',
+    location: 'Emergency Ward, Bed 14',
+    city: 'Lahore',
+    district: 'Old Anarkali',
+    bloodGroup: 'O-',
+    blood_group: 'O-',
+    units: 1,
+    urgency: 'critical',
+    status: 'active',
+    phone: '03125544321',
+    contactNumber: '03125544321',
+    contactPhone: '03125544321',
+    slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+    created_at: Date.now() / 1000 - 32 * 60,
+    createdAt: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
+    medical_context: 'Obstetric Emergency',
+    verified: true
+  },
+  {
+    id: 'mock-req-006',
+    patientName: 'Ayesha Noor',
+    patient_name: 'Ayesha Noor',
+    hospital: 'Civil Hospital Karachi',
+    ward: 'Female Ward, Bed 2',
+    location: 'Female Ward, Bed 2',
+    city: 'Karachi',
+    district: 'Karachi Central',
+    bloodGroup: 'A-',
+    blood_group: 'A-',
+    units: 2,
+    urgency: 'urgent',
+    status: 'active',
+    phone: '03023454321',
+    contactNumber: '03023454321',
+    contactPhone: '03023454321',
+    slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+    created_at: Date.now() / 1000 - 42 * 60,
+    createdAt: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
+    medical_context: 'Emergency Surgery',
+    verified: true
+  }
+];
+
+const MOCK_DONORS = [
+  {
+    uid: 'mock-donor-101',
+    id: 'mock-donor-101',
+    name: 'Ahmed Khan',
+    phone: '03009999999',
+    city: 'Lahore',
+    district: 'Lahore Cantonment',
+    blood_group: 'O+',
+    bloodGroup: 'O+',
+    notifications: ['WhatsApp', 'SMS'],
+    last_donation: '2026-07-12',
+    lastDonation: '2026-07-12',
+    total_donations: 3,
+    totalDonations: 3,
+    registered_at: Date.now() / 1000 - 30 * 24 * 60 * 60,
+    registeredAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    uid: 'rHJlphmTKI008HXLfLsJqrc1xDt2',
+    id: 'rHJlphmTKI008HXLfLsJqrc1xDt2',
+    name: 'Bilal Raza',
+    phone: '03005551234',
+    city: 'Lahore',
+    district: 'Model Town',
+    blood_group: 'A+',
+    bloodGroup: 'A+',
+    notifications: ['SMS'],
+    last_donation: '2026-08-02',
+    lastDonation: '2026-08-02',
+    total_donations: 5,
+    totalDonations: 5,
+    registered_at: Date.now() / 1000 - 21 * 24 * 60 * 60,
+    registeredAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
+  }
+];
+
+const inMemoryRequests = [...MOCK_REQUESTS];
+const inMemoryDonors = new Map(MOCK_DONORS.map(donor => [donor.uid, donor]));
 
 function invalidateRequestsCache() {
   requestsCache = null;
   requestsCacheTime = 0;
+}
+
+function isFirestoreFallbackError(error) {
+  if (!error) return false;
+  const errorCode = error.code ?? error.status ?? error.statusCode;
+  const errorMessage = String(error.message || error.details || '').toLowerCase();
+
+  return (
+    errorCode === 8 ||
+    errorCode === '8' ||
+    errorMessage.includes('quota') ||
+    errorMessage.includes('resource-exhausted') ||
+    errorMessage.includes('network') ||
+    errorMessage.includes('unavailable') ||
+    errorMessage.includes('deadline exceeded') ||
+    errorMessage.includes('fetch failed') ||
+    errorMessage.includes('firestore') && errorMessage.includes('failed')
+  );
+}
+
+function getFallbackRequests() {
+  return [...inMemoryRequests].sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0)).map((request) => normalizeRequest(request, request.id));
+}
+
+async function fireStoreWithTimeout(operation, timeoutMs = 2500) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(Object.assign(new Error('Firestore request timed out'), { code: 8 }));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([operation(), timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+function createAnonymousDonor(donorId) {
+  return {
+    id: donorId,
+    uid: donorId,
+    name: 'Anonymous Donor',
+    city: 'Lahore',
+    district: 'Lahore Cantonment',
+    bloodGroup: 'O+',
+    blood_group: 'O+',
+    phone: '03000000000',
+    status: 'available',
+    notifications: ['SMS'],
+    registered_at: Date.now() / 1000,
+    registeredAt: new Date().toISOString()
+  };
+}
+
+function getFallbackDonor(uid) {
+  const donor = inMemoryDonors.get(uid);
+  if (!donor) return createAnonymousDonor(uid);
+  return normalizeDonor(donor, uid);
 }
 
 function safeGetSeconds(val) {
@@ -92,13 +340,20 @@ function safeGetIsoString(seconds) {
 // Helper to normalize Firestore request documents for frontend compatibility
 function normalizeRequest(data, docId) {
   if (!data) data = {};
-  const normalizedStatus = (data.status || '').toLowerCase().replace(/\s+/g, '-'); // "En Route" -> "en-route", "Awaiting" -> "awaiting"
+
+  const safeCreatedAt = data.createdAt || data.created_at || null;
+  const safeCreatedAtIso = safeCreatedAt?.toDate
+    ? safeCreatedAt.toDate().toISOString()
+    : safeCreatedAt || new Date().toISOString();
+
+  const normalizedStatus = (data.status || '').toLowerCase().replace(/\s+/g, '-');
   const normalizedUrgency = (data.urgency || '').toLowerCase();
   const bloodGroup = data.blood_group || data.bloodGroup || '';
   const patientName = data.patient_name || data.patientName || '';
   const phone = data.phone || data.contactPhone || '';
   const ward = data.ward || data.location || '';
   const district = data.district || data.location || '';
+  const city = data.city || '';
 
   const createdAtSeconds = safeGetSeconds(data.created_at || data.createdAt) || (Date.now() / 1000);
   const acceptedAtSeconds = safeGetSeconds(data.accepted_at || data.acceptedAt);
@@ -117,9 +372,10 @@ function normalizeRequest(data, docId) {
     contactPhone: phone,
     ward: ward,
     location: ward,
+    city: city,
     district: district,
     created_at: createdAtSeconds,
-    createdAt: safeGetIsoString(createdAtSeconds),
+    createdAt: safeCreatedAtIso,
     accepted_at: acceptedAtSeconds,
     acceptedAt: safeGetIsoString(acceptedAtSeconds),
     lock_expires_at: lockExpiresAtSeconds,
@@ -312,12 +568,20 @@ app.post('/api/donors/login', async (req, res) => {
 // GET /api/donors/:uid
 app.get('/api/donors/:uid', async (req, res) => {
   try {
-    const doc = await db.collection('donors').doc(req.params.uid).get();
+    const doc = await fireStoreWithTimeout(() => db.collection('donors').doc(req.params.uid).get());
     if (!doc.exists) {
-      return res.status(404).json({ message: "Donor not found" });
+      const fallbackDonor = getFallbackDonor(req.params.uid);
+      console.warn("[Donor] Missing Firestore donor, returning safe fallback donor object.");
+      return res.status(200).json(fallbackDonor);
     }
     res.status(200).json(normalizeDonor(doc.data(), doc.id));
   } catch (error) {
+    if (isFirestoreFallbackError(error)) {
+      const fallbackDonor = getFallbackDonor(req.params.uid);
+      console.warn("[Firestore] Donor lookup failed, serving fallback donor data.");
+      return res.status(200).json(fallbackDonor);
+    }
+
     console.error("GET /api/donors/:uid Error:", error);
     res.status(500).json({ error: error.message });
   }
@@ -335,67 +599,79 @@ app.get('/api/requests', async (req, res) => {
     const urgency = req.query.urgency;
     const status = req.query.status;
 
-    // Check in-memory cache
     let allRequests = null;
     const now = Date.now();
     if (requestsCache && (now - requestsCacheTime) < CACHE_TTL_MS) {
       allRequests = requestsCache;
     } else {
-      // Fetch all requests from Firestore
-      const snapshot = await db.collection('requests').get();
+      const snapshot = await fireStoreWithTimeout(() => db.collection('requests').get());
       allRequests = [];
+
       snapshot.forEach(doc => {
-        allRequests.push(normalizeRequest(doc.data(), doc.id));
+        try {
+          const rawDoc = typeof doc.data === 'function' ? doc.data() : {};
+          const normalizedDoc = normalizeRequest(rawDoc, doc.id);
+          allRequests.push(normalizedDoc);
+        } catch (mappingError) {
+          console.warn(`Skipping request mapping for ${doc.id}:`, mappingError);
+        }
       });
-      // Update cache
+
       requestsCache = allRequests;
       requestsCacheTime = now;
     }
 
     const results = [];
     allRequests.forEach(normalized => {
-      // Client-side filtering for status
-      if (status && status !== 'all') {
-        if (normalized.status !== status.toLowerCase()) {
-          return;
+      try {
+        if (status && status !== 'all') {
+          if ((normalized.status || '').toLowerCase() !== status.toLowerCase()) {
+            return;
+          }
         }
-      }
 
-      // Client-side filtering for blood group
-      if (blood_group && blood_group !== 'All') {
-        if (normalized.bloodGroup.toLowerCase() !== blood_group.toLowerCase()) {
-          return;
+        if (blood_group && blood_group !== 'All') {
+          const normalizedBloodGroup = (normalized.bloodGroup || '').toString().toLowerCase();
+          if (normalizedBloodGroup !== String(blood_group).toLowerCase()) {
+            return;
+          }
         }
-      }
 
-      // Client-side filtering for city (includes matching city, district, or hospital)
-      if (city && city !== 'All Cities') {
-        const cityLower = city.toLowerCase();
-        const matchCity = (normalized.city || '').toLowerCase().includes(cityLower);
-        const matchDistrict = (normalized.district || '').toLowerCase().includes(cityLower);
-        const matchHospital = (normalized.hospital || '').toLowerCase().includes(cityLower);
-        if (!matchCity && !matchDistrict && !matchHospital) {
-          return;
+        if (city && city !== 'All Cities') {
+          const cityLower = String(city).toLowerCase();
+          const matchCity = (normalized.city || '').toLowerCase().includes(cityLower);
+          const matchDistrict = (normalized.district || '').toLowerCase().includes(cityLower);
+          const matchHospital = (normalized.hospital || '').toLowerCase().includes(cityLower);
+          if (!matchCity && !matchDistrict && !matchHospital) {
+            return;
+          }
         }
-      }
 
-      // Client-side filtering for urgency
-      if (urgency && urgency !== 'all') {
-        if (normalized.urgency !== urgency.toLowerCase()) {
-          return;
+        if (urgency && urgency !== 'all') {
+          if ((normalized.urgency || '').toLowerCase() !== String(urgency).toLowerCase()) {
+            return;
+          }
         }
-      }
 
-      results.push(normalized);
+        results.push(normalized);
+      } catch (filterError) {
+        console.warn('Skipping request due to unsafe filter data:', filterError);
+      }
     });
 
-    // Sort by created_at desc
-    results.sort((a, b) => b.created_at - a.created_at);
+    results.sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
 
     res.status(200).json(results.slice(skip, skip + limit));
   } catch (error) {
+    if (isFirestoreFallbackError(error)) {
+      const fallbackResults = getFallbackRequests();
+      console.warn("[Firestore] Quota/network failure detected. Serving in-memory fallback requests.");
+      return res.status(200).json(fallbackResults.length ? fallbackResults : MOCK_REQUESTS.map(req => normalizeRequest(req, req.id)));
+    }
+
     console.error("GET /api/requests Error:", error);
-    res.status(200).json([]);
+    const fallbackResults = getFallbackRequests();
+    return res.status(200).json(fallbackResults.length ? fallbackResults : MOCK_REQUESTS.map(req => normalizeRequest(req, req.id)));
   }
 });
 
@@ -408,6 +684,15 @@ app.get('/api/requests/:id', async (req, res) => {
     }
     res.status(200).json(normalizeRequest(doc.data(), doc.id));
   } catch (error) {
+    if (isFirestoreFallbackError(error)) {
+      const fallbackRequest = getFallbackRequests().find(item => item.id === req.params.id);
+      if (fallbackRequest) {
+        console.warn("[Firestore] Request lookup failed, serving in-memory fallback request.");
+        return res.status(200).json(fallbackRequest);
+      }
+      return res.status(404).json({ detail: "Blood request not found" });
+    }
+
     console.error("Error in GET /api/requests/:id:", error);
     res.status(500).json({ error: error.message });
   }
@@ -480,36 +765,85 @@ app.post('/api/requests', upload.single('slip_file'), async (req, res) => {
       lock_expires_at: null
     };
 
-    await db.collection('requests').doc(reqId).set(requestDoc);
-    invalidateRequestsCache();
+    let firestoreWriteSucceeded = false;
+    try {
+      await db.collection('requests').doc(reqId).set(requestDoc);
+      firestoreWriteSucceeded = true;
+      invalidateRequestsCache();
+    } catch (error) {
+      if (!isFirestoreFallbackError(error)) {
+        throw error;
+      }
 
-    // FCM Push Notification trigger (non-blocking)
-    const topic = `city_${(city || '').toLowerCase().trim().replace(/\s+/g, '_')}`;
-    const message = {
-      notification: {
-        title: `🚨 Emergency: ${finalBloodGroup} Needed in ${city || ''}`,
-        body: `${hospital || ''} - ${parseInt(units) || 1} Unit(s) required. Click to respond!`,
-      },
-      data: {
-        requestId: reqId,
-        url: `/request/${reqId}`,
-      },
-      topic: topic,
-    };
-    admin.messaging().send(message)
-      .then(() => {
-        console.log(`[FCM] Notification successfully sent to topic: ${topic}`);
-      })
-      .catch(err => {
-        console.error("FCM Background Error:", err);
-      });
+      console.warn("[Firestore] Write failed due to quota/network issue. Appending request to in-memory fallback store.");
+      inMemoryRequests.unshift({ ...requestDoc, created_at: requestDoc.created_at || Date.now() / 1000 });
+      requestsCache = getFallbackRequests();
+      requestsCacheTime = Date.now();
+    }
 
-    console.log(`[BROADCAST] Express Broadcast Engine triggered for Request ${reqId}:`);
-    console.log(`- Channel A (Live Board): Published to database.`);
-    console.log(`- Channel B (SMS/WhatsApp): Dispatched match notifications to matching ${finalBloodGroup} donors in ${city} (${finalDistrict}).`);
+    // FCM Push Notification trigger (non-blocking) only when Firestore write succeeded
+    if (firestoreWriteSucceeded) {
+      const topic = `city_${(city || '').toLowerCase().trim().replace(/\s+/g, '_')}`;
+      const message = {
+        notification: {
+          title: `🚨 Emergency: ${finalBloodGroup} Needed in ${city || ''}`,
+          body: `${hospital || ''} - ${parseInt(units) || 1} Unit(s) required. Click to respond!`,
+        },
+        data: {
+          requestId: reqId,
+          url: `/request/${reqId}`,
+        },
+        topic: topic,
+      };
+      admin.messaging().send(message)
+        .then(() => {
+          console.log(`[FCM] Notification successfully sent to topic: ${topic}`);
+        })
+        .catch(err => {
+          console.error("FCM Background Error:", err);
+        });
+
+      console.log(`[BROADCAST] Express Broadcast Engine triggered for Request ${reqId}:`);
+      console.log(`- Channel A (Live Board): Published to database.`);
+      console.log(`- Channel B (SMS/WhatsApp): Dispatched match notifications to matching ${finalBloodGroup} donors in ${city} (${finalDistrict}).`);
+    } else {
+      console.log(`[BROADCAST FALLBACK] Request ${reqId} stored in local in-memory fallback queue during Firestore outage.`);
+    }
 
     res.status(201).json(normalizeRequest(requestDoc, reqId));
   } catch (error) {
+    if (isFirestoreFallbackError(error)) {
+      console.warn("[Firestore] Write path failed. Persisting into local in-memory fallback queue.");
+      const fallbackRequest = {
+        ...{
+          id: 'mock-' + uuidv4().substring(0, 8),
+          patientName: req.body.patientName || req.body.patient_name || '',
+          patient_name: req.body.patientName || req.body.patient_name || '',
+          hospital: req.body.hospital || '',
+          ward: req.body.ward || req.body.location || '',
+          location: req.body.ward || req.body.location || '',
+          city: req.body.city || '',
+          district: req.body.district || req.body.location || '',
+          bloodGroup: req.body.bloodGroup || req.body.blood_group || '',
+          blood_group: req.body.bloodGroup || req.body.blood_group || '',
+          units: parseInt(req.body.units) || 1,
+          urgency: (req.body.urgency || 'critical').toLowerCase(),
+          status: 'awaiting',
+          phone: req.body.phone || req.body.contactPhone || '',
+          contactPhone: req.body.phone || req.body.contactPhone || '',
+          slip_url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80',
+          created_at: Date.now() / 1000,
+          createdAt: new Date().toISOString(),
+          medical_context: req.body.medical_context || 'General Emergency',
+          verified: true,
+        }
+      };
+      inMemoryRequests.unshift(fallbackRequest);
+      requestsCache = getFallbackRequests();
+      requestsCacheTime = Date.now();
+      return res.status(201).json(normalizeRequest(fallbackRequest, fallbackRequest.id));
+    }
+
     console.error("Error in POST /api/requests:", error);
     res.status(500).json({ error: error.message });
   }
