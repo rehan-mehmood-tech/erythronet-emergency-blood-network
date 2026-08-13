@@ -4,16 +4,15 @@ import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 
 const providedApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-const isMockKey = !providedApiKey || providedApiKey === "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8" || providedApiKey.includes("AIzaSy");
 
 // Firebase configuration using Vite environment variables or default fallbacks
 const firebaseConfig = {
-    apiKey: providedApiKey || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "erythronet-emergency-blood-net.firebaseapp.com",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "erythronet-emergency-blood-net",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "erythronet-emergency-blood-net.firebasestorage.app",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "195574177790",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:195574177790:web:541f5d7c7893eead486aaf"
+  apiKey: providedApiKey || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "erythronet-emergency-blood-net.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "erythronet-emergency-blood-net",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "erythronet-emergency-blood-net.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "195574177790",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:195574177790:web:541f5d7c7893eead486aaf"
 };
 
 let app: FirebaseApp | null = null;
@@ -24,76 +23,32 @@ const googleProvider = new GoogleAuthProvider();
 
 // Optional: Prompt account selection on every Google login
 googleProvider.setCustomParameters({
-    prompt: 'select_account'
+  prompt: 'select_account'
 });
 
 try {
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    if (auth && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        auth.settings.appVerificationDisabledForTesting = true;
-    }
-    db = getFirestore(app);
-    storage = getStorage(app);
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  if (auth && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    auth.settings.appVerificationDisabledForTesting = true;
+  }
+  db = getFirestore(app);
+  storage = getStorage(app);
 } catch (error) {
-    console.warn("⚠️ Firebase failed to initialize:", error);
+  console.warn("⚠️ Firebase failed to initialize:", error);
 }
 
-import { getMessaging, getToken, Messaging } from 'firebase/messaging';
-import { donorsApi } from '../../lib/api';
+// HARD DISABLED FCM MESSAGING TO PREVENT HTTP 400 FIREBASE INSTALLATION ERRORS
+export const messaging = null;
 
-export let messaging: Messaging | null = null;
-const isFcmEnabled = import.meta.env.VITE_ENABLE_FCM === 'true';
-
-if (typeof window !== "undefined" && "serviceWorker" in navigator && isFcmEnabled && !isMockKey) {
-  try {
-    if (app) {
-      messaging = getMessaging(app);
-    }
-  } catch (err) {
-    console.warn("⚠️ FCM Messaging unavailable in current browser context:", err);
-  }
-} else if (!isFcmEnabled) {
-    console.warn("⚠️ FCM Messaging bypassed: VITE_ENABLE_FCM is not true.");
-} else if (isMockKey) {
-    console.warn("⚠️ FCM Messaging bypassed: Valid VITE_FIREBASE_API_KEY is missing or invalid.");
-}
-
-export const requestNotificationPermission = async () => {
-  if (!isFcmEnabled || isMockKey) return null;
-  
-  try {
-    if (typeof window === "undefined" || !("Notification" in window)) return null;
-    const permission = await Notification.requestPermission();
-    if (permission === "granted" && messaging) {
-      try {
-        const token = await getToken(messaging, {
-          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
-        });
-        console.log("FCM Device Token:", token);
-        return token;
-      } catch (tokenError: any) {
-        console.warn("⚠️ FCM Token Fetch failed (harmless if testing locally without valid key):", tokenError?.message || tokenError);
-        return null;
-      }
-    }
-  } catch (error) {
-    console.warn("⚠️ Notification permission error:", error);
-  }
+export const requestNotificationPermission = async (): Promise<string | null> => {
+  // Completely bypassed to avoid Google Installations API network calls
   return null;
 };
 
-export const subscribeToCityTopic = async (city: string) => {
-  try {
-    const token = await requestNotificationPermission();
-    if (!token) return;
-    
-    const safeCity = `city_${city.toLowerCase().trim().replace(/\s+/g, '_')}`;
-    await donorsApi.subscribeTopic(token, safeCity);
-    console.log(`[FCM] Subscribed to topic: ${safeCity}`);
-  } catch (error) {
-    console.warn("⚠️ FCM topic subscription failed:", error);
-  }
+export const subscribeToCityTopic = async (_city: string): Promise<void> => {
+  // Completely bypassed to avoid Google Installations API network calls
+  return;
 };
 
 export { auth, db, storage, googleProvider };
