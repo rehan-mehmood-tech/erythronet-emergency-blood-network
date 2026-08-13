@@ -12,9 +12,23 @@ import { useProtectedAction } from '@/src/hooks/useProtectedAction'
 
 const ETA_OPTIONS = ['15 min', '30 min', '45 min', '60 min', '90 min']
 
-function CountdownRing({ seconds }: { seconds: number }) {
-  const total = 5400
-  const pct = seconds / total
+const checkCompatibility = (donor: string, recipient: string): boolean => {
+  const d = donor.trim().toUpperCase();
+  const r = recipient.trim().toUpperCase();
+
+  if (d === 'O-') return true;
+  if (d === 'O+') return ['O+', 'A+', 'B+', 'AB+'].includes(r);
+  if (d === 'A-') return ['A-', 'A+', 'AB-', 'AB+'].includes(r);
+  if (d === 'A+') return ['A+', 'AB+'].includes(r);
+  if (d === 'B-') return ['B-', 'B+', 'AB-', 'AB+'].includes(r);
+  if (d === 'B+') return ['B+', 'AB+'].includes(r);
+  if (d === 'AB-') return ['AB-', 'AB+'].includes(r);
+  if (d === 'AB+') return r === 'AB+';
+  return false;
+};
+
+function CountdownRing({ seconds, total }: { seconds: number; total: number }) {
+  const pct = total > 0 ? seconds / total : 0
   const r = 48
   const circ = 2 * Math.PI * r
   const offset = circ * (1 - pct)
@@ -51,6 +65,8 @@ export default function RequestDetail() {
   const protect = useProtectedAction()
   const [requests, setRequests] = useState<BloodRequest[]>([])
   const [showModal, setShowModal] = useState(false)
+  const [showMismatchModal, setShowMismatchModal] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [selectedEta, setSelectedEta] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [countdown, setCountdown] = useState(5400)
@@ -64,11 +80,47 @@ export default function RequestDetail() {
   const request = requests.find((r) => r.id === id)
   const currentDonor = backend.getCurrentDonor()
 
+  // Reset local states when navigating to a different request ID to avoid leaks
   useEffect(() => {
-    if (!request || request.status !== 'en-route') return
+    setShowModal(false)
+    setShowMismatchModal(false)
+    setSelectedEta('')
+    setConfirming(false)
+  }, [id])
+
+  // Load and merge local commitment state if exists
+  const localCommitmentStr = id ? localStorage.getItem(`commitment_${id}`) : null
+  const localCommitment = localCommitmentStr ? JSON.parse(localCommitmentStr) : null
+
+  const requestData = request ? { ...request } : null
+  if (requestData && localCommitment) {
+    const isExpired = Date.now() > new Date(localCommitment.lockExpiresAt).getTime()
+    if (!isExpired) {
+      if (requestData.status === 'awaiting') {
+        requestData.status = 'en-route'
+        requestData.donorName = localCommitment.donorName
+        requestData.donorEta = localCommitment.donorEta
+        requestData.acceptedByDonorId = localCommitment.acceptedByDonorId
+        requestData.acceptedAt = localCommitment.acceptedAt
+        requestData.lockExpiresAt = localCommitment.lockExpiresAt
+      }
+    } else {
+      if (id) {
+        localStorage.removeItem(`commitment_${id}`)
+      }
+    }
+  }
+
+  // Dynamic commitment total seconds calculation
+  const etaMinutes = requestData?.donorEta ? parseInt(requestData.donorEta) : 90
+  const totalSeconds = etaMinutes * 60
+
+  useEffect(() => {
+    if (!requestData || requestData.status !== 'en-route') return
     
-    const acceptedAt = request.acceptedAt || Date.now()
-    const expiresAt = request.lockExpiresAt || (acceptedAt + 90 * 60 * 1000)
+    const acceptedAt = requestData.acceptedAt ? new Date(requestData.acceptedAt).getTime() : Date.now()
+    const currentEtaMin = requestData.donorEta ? parseInt(requestData.donorEta) : 90
+    const expiresAt = requestData.lockExpiresAt ? new Date(requestData.lockExpiresAt).getTime() : (acceptedAt + currentEtaMin * 60 * 1000)
     
     const updateCountdown = () => {
       const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
@@ -78,7 +130,7 @@ export default function RequestDetail() {
     updateCountdown()
     const t = setInterval(updateCountdown, 1000)
     return () => clearInterval(t)
-  }, [request?.status, request?.acceptedAt, request?.lockExpiresAt])
+  }, [requestData?.status, requestData?.acceptedAt, requestData?.lockExpiresAt, requestData?.donorEta, id])
 
   const urgencyColor: Record<string, string> = {
     critical: 'text-[#C1121F]',
@@ -86,8 +138,15 @@ export default function RequestDetail() {
     routine: 'text-[#168A55]',
   }
 
+  const showToast = (message: string) => {
+    setToastMessage(message)
+    setTimeout(() => {
+      setToastMessage(null)
+    }, 3000)
+  }
+
   const handleConfirm = async () => {
-    if (!request || !user) return
+    if (!requestData || !user) return
     setConfirming(true)
     try {
       const donor = currentDonor || {
@@ -107,7 +166,19 @@ export default function RequestDetail() {
         await backend.registerDonor(donor)
       }
 
-      await backend.acceptRequest(request.id, donor.name, selectedEta, donor.uid)
+      await backend.acceptRequest(requestData.id, donor.name, selectedEta, donor.uid)
+      
+      // Scope commitment state and local storage keys strictly to the current requestId
+      const etaMin = parseInt(selectedEta) || 90
+      localStorage.setItem(`commitment_${requestData.id}`, JSON.stringify({
+        status: 'en-route',
+        donorName: donor.name,
+        donorEta: selectedEta,
+        acceptedByDonorId: donor.uid,
+        acceptedAt: new Date().toISOString(),
+        lockExpiresAt: new Date(Date.now() + etaMin * 60 * 1000).toISOString()
+      }))
+
       setShowModal(false)
     } catch (err) {
       console.error("Confirm donor commitment error:", err)
@@ -117,10 +188,11 @@ export default function RequestDetail() {
   }
 
   const handleCancel = async () => {
-    if (!request) return
+    if (!requestData) return
     setConfirming(true)
     try {
-      await backend.cancelAcceptance(request.id)
+      await backend.cancelAcceptance(requestData.id)
+      localStorage.removeItem(`commitment_${requestData.id}`)
     } catch (err) {
       console.error("Cancel commitment error:", err)
     } finally {
@@ -129,10 +201,11 @@ export default function RequestDetail() {
   }
 
   const handleFulfill = async () => {
-    if (!request) return
+    if (!requestData) return
     setConfirming(true)
     try {
-      await backend.fulfillRequest(request.id)
+      await backend.fulfillRequest(requestData.id)
+      localStorage.removeItem(`commitment_${requestData.id}`)
     } catch (err) {
       console.error("Fulfill request error:", err)
     } finally {
@@ -140,7 +213,7 @@ export default function RequestDetail() {
     }
   }
 
-  if (!request) {
+  if (!requestData) {
     return (
       <div className="pt-24 min-h-screen bg-[#FFF7F7] flex items-center justify-center">
         <div className="text-center">
@@ -167,8 +240,8 @@ export default function RequestDetail() {
               style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <span className={`text-xs font-bold tracking-widest uppercase ${urgencyColor[request.urgency]}`}>
-                    {request.urgency.toUpperCase()}
+                  <span className={`text-xs font-bold tracking-widest uppercase ${urgencyColor[requestData.urgency]}`}>
+                    {requestData.urgency.toUpperCase()}
                   </span>
                   <h1 className="text-xl font-extrabold text-[#171717] mt-1"
                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -178,20 +251,20 @@ export default function RequestDetail() {
                 <div className="text-right">
                   <div className="text-5xl font-extrabold text-[#C1121F] leading-none"
                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                    {request.bloodGroup}
+                    {requestData.bloodGroup}
                   </div>
                   <div className="text-xs font-semibold text-[#6B6B6B] mt-1 tracking-wide">
-                    {request.units} UNIT{request.units > 1 ? 'S' : ''} REQUIRED
+                    {requestData.units} UNIT{requestData.units > 1 ? 'S' : ''} REQUIRED
                   </div>
                 </div>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
                 {[
-                  { icon: Activity, label: 'Hospital', value: request.hospital },
-                  { icon: MapPin, label: 'District', value: request.district },
-                  { icon: Droplets, label: 'Ward', value: request.ward },
-                  { icon: Clock, label: 'Requested', value: formatTimeAgo(request.createdAt) },
+                  { icon: Activity, label: 'Hospital', value: requestData.hospital },
+                  { icon: MapPin, label: 'District', value: requestData.district },
+                  { icon: Droplets, label: 'Ward', value: requestData.ward },
+                  { icon: Clock, label: 'Requested', value: formatTimeAgo(requestData.createdAt) },
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex items-start gap-3 bg-[#FFF7F7] rounded-xl p-3 border border-[#F0D9DC]">
                     <div className="w-7 h-7 bg-[#FDE8EA] rounded-lg flex items-center justify-center flex-shrink-0">
@@ -248,15 +321,15 @@ export default function RequestDetail() {
           <div className="lg:sticky lg:top-24">
             <div className="bg-white rounded-2xl border overflow-hidden"
               style={{
-                borderColor: request.status === 'awaiting' ? '#F0D9DC' : request.status === 'en-route' ? '#fde68a' : '#a7f3d0',
+                borderColor: requestData.status === 'awaiting' ? '#F0D9DC' : requestData.status === 'en-route' ? '#fde68a' : '#a7f3d0',
                 boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
               }}>
               {/* Status header */}
               <div
                 className={`px-5 py-4 border-b ${
-                  request.status === 'awaiting'
+                  requestData.status === 'awaiting'
                     ? 'bg-[#FDE8EA] border-[#F0D9DC]'
-                    : request.status === 'en-route'
+                    : requestData.status === 'en-route'
                     ? 'bg-amber-50 border-amber-100'
                     : 'bg-green-50 border-green-100'
                 }`}
@@ -264,29 +337,29 @@ export default function RequestDetail() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-2.5 h-2.5 rounded-full ${
-                      request.status === 'awaiting'
+                      requestData.status === 'awaiting'
                         ? 'bg-[#C1121F] animate-live-dot'
-                        : request.status === 'en-route'
+                        : requestData.status === 'en-route'
                         ? 'bg-[#D99000]'
                         : 'bg-[#168A55]'
                     }`}
                   />
                   <span
                     className={`text-xs font-bold tracking-widest uppercase ${
-                      request.status === 'awaiting'
+                      requestData.status === 'awaiting'
                         ? 'text-[#C1121F]'
-                        : request.status === 'en-route'
+                        : requestData.status === 'en-route'
                         ? 'text-[#D99000]'
                         : 'text-[#168A55]'
                     }`}
                   >
-                    {request.status === 'awaiting' ? 'Awaiting Donor' : request.status === 'en-route' ? 'Donor En Route' : 'Fulfilled'}
+                    {requestData.status === 'awaiting' ? 'Awaiting Donor' : requestData.status === 'en-route' ? 'Donor En Route' : 'Fulfilled'}
                   </span>
                 </div>
               </div>
 
               <div className="p-5">
-                {request.status === 'awaiting' && (
+                {requestData.status === 'awaiting' && (
                   <>
                     <div className="text-center py-4 mb-4">
                       <div className="w-14 h-14 bg-[#FDE8EA] rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -295,7 +368,15 @@ export default function RequestDetail() {
                       <p className="text-sm text-[#6B6B6B]">Waiting for a nearby voluntary donor.</p>
                     </div>
                     <button
-                      onClick={() => protect(() => setShowModal(true))}
+                      onClick={() => protect(() => {
+                        const userBloodGroup = currentDonor?.bloodGroup || 'O+';
+                        const requiredBloodGroup = requestData.bloodGroup;
+                        if (checkCompatibility(userBloodGroup, requiredBloodGroup)) {
+                          setShowModal(true);
+                        } else {
+                          setShowMismatchModal(true);
+                        }
+                      })}
                       className="btn-primary w-full justify-center py-3.5 text-sm rounded-xl cursor-pointer"
                     >
                       <Heart size={16} strokeWidth={2} />
@@ -308,21 +389,21 @@ export default function RequestDetail() {
                   </>
                 )}
 
-                {request.status === 'en-route' && (
+                {requestData.status === 'en-route' && (
                   <div className="text-center">
                     <p className="text-xs font-bold text-[#D99000] tracking-widest uppercase mb-1">Donor Confirmed</p>
                     <div className="text-sm font-semibold text-[#171717] mb-4">
-                      {request.donorName || 'Ahmed K.'} · ETA {request.donorEta || '30 min'}
+                      {requestData.donorName || 'Ahmed K.'} · ETA {requestData.donorEta || '30 min'}
                     </div>
                     <div className="flex justify-center mb-4">
-                      <CountdownRing seconds={countdown} />
+                      <CountdownRing seconds={countdown} total={totalSeconds} />
                     </div>
                     <p className="text-xs text-[#6B6B6B] mb-4">
                       Commitment window active. Donor has committed to reaching the hospital within the selected ETA.
                     </p>
                     
                     {/* Actions panel: visible to assigned donor, or open for demo mode if no donor is logged in */}
-                    {(!user || user.uid === request.acceptedByDonorId) ? (
+                    {(!user || user.uid === requestData.acceptedByDonorId) ? (
                       <div className="space-y-2 mt-4 pt-4 border-t border-[#E8E8E8]">
                         <button
                           onClick={handleFulfill}
@@ -350,7 +431,7 @@ export default function RequestDetail() {
                   </div>
                 )}
 
-                {request.status === 'fulfilled' && (
+                {requestData.status === 'fulfilled' && (
                   <div className="text-center py-4">
                     <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-green-100">
                       <CheckCircle size={26} className="text-[#168A55]" strokeWidth={2} />
@@ -368,13 +449,86 @@ export default function RequestDetail() {
             <div className="mt-3 bg-[#FFF7F7] border border-[#F0D9DC] rounded-xl p-4 text-center">
               <p className="text-xs text-[#6B6B6B] mb-2">Share this request to reach more donors</p>
               <div className="flex gap-2 justify-center">
-                <button className="btn-secondary text-xs py-1.5 px-3 rounded-lg">WhatsApp</button>
-                <button className="btn-ghost text-xs py-1.5 px-3">Copy Link</button>
+                <button
+                  onClick={() => {
+                    const url = window.location.href;
+                    const text = `Urgent blood request for ${requestData.patientName} (${requestData.bloodGroup}) at ${requestData.hospital}, ${requestData.city}. Help save a life: ${url}`;
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                  className="btn-secondary text-xs py-1.5 px-3 rounded-lg cursor-pointer"
+                >
+                  WhatsApp
+                </button>
+                <button
+                  onClick={() => {
+                    const url = window.location.href;
+                    navigator.clipboard.writeText(url);
+                    showToast("Request link copied to clipboard!");
+                  }}
+                  className="btn-ghost text-xs py-1.5 px-3 cursor-pointer"
+                >
+                  Copy Link
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Blood Group Mismatch Warnings Modal (Verified Member Aesthetic) */}
+      {showMismatchModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMismatchModal(false)} />
+          <div className="relative bg-[#121212] border border-[#2A1013] w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl text-white">
+            <div className="w-10 h-1 bg-neutral-800 rounded-full mx-auto mb-6 sm:hidden" />
+            
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1C1C1E] border border-neutral-800 text-[10px] font-bold uppercase tracking-wider text-[#FF453A] mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF453A] animate-pulse" />
+              Verified Member Warning
+            </div>
+
+            <h2 className="text-xl font-extrabold text-white mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Blood Group Mismatch
+            </h2>
+            
+            <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
+              Your registered blood group is <strong className="text-[#FF453A] font-bold">{currentDonor?.bloodGroup || 'O+'}</strong>, but this request requires <strong className="text-[#FF453A] font-bold">{requestData.bloodGroup}</strong>. Direct donation is medically incompatible.
+            </p>
+
+            <div className="space-y-2.5">
+              <button
+                onClick={() => {
+                  setShowMismatchModal(false);
+                  setShowModal(true);
+                }}
+                className="w-full bg-[#FF453A] hover:bg-[#FF3B30] text-white text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                I'm Sending Someone Else
+              </button>
+
+              <button
+                onClick={() => {
+                  const url = window.location.href;
+                  navigator.clipboard.writeText(url);
+                  showToast("Request link copied to clipboard!");
+                }}
+                className="w-full bg-[#1C1C1E] border border-neutral-800 hover:bg-neutral-800 text-neutral-200 text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                Copy Request Link
+              </button>
+
+              <button
+                onClick={() => setShowMismatchModal(false)}
+                className="w-full bg-transparent text-neutral-500 hover:text-neutral-400 text-sm font-bold py-2 px-4 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Donor Acceptance Modal */}
       {showModal && (
@@ -386,7 +540,7 @@ export default function RequestDetail() {
               You're about to help.
             </h2>
             <p className="text-sm text-[#6B6B6B] mb-5">
-              Estimated time to reach <strong>{request.hospital}</strong>?
+              Estimated time to reach <strong>{requestData.hospital}</strong>?
             </p>
             <div className="grid grid-cols-3 gap-2.5 mb-6">
               {ETA_OPTIONS.map((eta) => (
@@ -433,6 +587,14 @@ export default function RequestDetail() {
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#121212] border border-neutral-800 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 transition-all duration-300 animate-slide-up">
+          <CheckCircle size={14} className="text-green-500" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>
