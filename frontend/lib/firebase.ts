@@ -9,9 +9,12 @@ import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging
 import { BloodRequest, Donor } from '../types';
 import { requestsApi, donorsApi, metricsApi, pollRequests } from './api';
 
+const providedApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const isMockKey = !providedApiKey || providedApiKey === "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8" || providedApiKey.includes("AIzaSy");
+
 // Web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
+  apiKey: providedApiKey || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "erythronet-emergency-blood-net.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "erythronet-emergency-blood-net",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "erythronet-emergency-blood-net.firebasestorage.app",
@@ -22,27 +25,40 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export let messaging: Messaging | null = null;
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+const isFcmEnabled = import.meta.env.VITE_ENABLE_FCM === 'true';
+
+if (typeof window !== "undefined" && "serviceWorker" in navigator && isFcmEnabled && !isMockKey) {
   try {
     messaging = getMessaging(app);
   } catch (err) {
     console.warn("⚠️ FCM Messaging unavailable in current browser context:", err);
   }
+} else if (!isFcmEnabled) {
+  console.warn("⚠️ FCM Messaging bypassed: VITE_ENABLE_FCM is not true.");
+} else if (isMockKey) {
+  console.warn("⚠️ FCM Messaging bypassed: Valid VITE_FIREBASE_API_KEY is missing or invalid.");
 }
 
 export const requestNotificationPermission = async () => {
+  if (!isFcmEnabled || isMockKey) return null;
+
   try {
     if (typeof window === "undefined" || !("Notification" in window)) return null;
     const permission = await Notification.requestPermission();
     if (permission === "granted" && messaging) {
-      const token = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
-      });
-      console.log("FCM Device Token:", token);
-      return token;
+      try {
+        const token = await getToken(messaging, {
+          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
+        });
+        console.log("FCM Device Token:", token);
+        return token;
+      } catch (tokenError: any) {
+        console.warn("⚠️ FCM Token Fetch failed (harmless if testing locally without valid key):", tokenError?.message || tokenError);
+        return null;
+      }
     }
   } catch (error) {
-    console.error("Notification permission error:", error);
+    console.warn("⚠️ Notification permission error:", error);
   }
   return null;
 };
