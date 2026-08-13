@@ -47,6 +47,19 @@ export const requestNotificationPermission = async () => {
   return null;
 };
 
+export const subscribeToCityTopic = async (city: string) => {
+  try {
+    const token = await requestNotificationPermission();
+    if (!token) return;
+    
+    const safeCity = `city_${city.toLowerCase().trim().replace(/\s+/g, '_')}`;
+    await donorsApi.subscribeTopic(token, safeCity);
+    console.log(`[FCM] Subscribed to topic: ${safeCity}`);
+  } catch (error) {
+    console.warn("⚠️ FCM topic subscription failed:", error);
+  }
+};
+
 // Set false to route all operations through FastAPI/SQLite (Firebase Storage CORS not configured)
 const isFirebaseConfigured = false;
 let db: any = null;
@@ -56,6 +69,9 @@ let storage: any = null;
 try {
   db = getFirestore(app);
   auth = getAuth(app);
+  if (auth && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    auth.settings.appVerificationDisabledForTesting = true;
+  }
   storage = getStorage(app);
 } catch (error) {
   console.warn("⚠️ Firebase service initialization failed:", error);
@@ -383,6 +399,10 @@ export const backend = {
     // Cache session locally so auth state persists across refreshes
     localStorage.setItem('erythronet_current_user', JSON.stringify(savedDonor));
     window.dispatchEvent(new Event('erythronet_auth_changed'));
+
+    if (savedDonor.city) {
+      subscribeToCityTopic(savedDonor.city);
+    }
   },
 
   /**

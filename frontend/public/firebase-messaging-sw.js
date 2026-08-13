@@ -14,11 +14,37 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log("[firebase-messaging-sw.js] Received background message ", payload);
-  const notificationTitle = payload.notification.title || "Emergency Blood Needed!";
+  const notificationTitle = payload.notification ? payload.notification.title : "Emergency Blood Needed!";
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: "/logo.png"
+    body: payload.notification ? payload.notification.body : "",
+    icon: "/logo.png",
+    data: payload.data || {}
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[firebase-messaging-sw.js] Notification clicked.', event);
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const requestId = data.requestId;
+  
+  // Default to live board, or request detail if id is present
+  const targetUrl = requestId ? `/request/${requestId}` : '/live-board';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
 });

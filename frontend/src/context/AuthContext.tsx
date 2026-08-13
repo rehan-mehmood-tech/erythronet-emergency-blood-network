@@ -9,7 +9,7 @@ import {
   updateProfile,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, subscribeToCityTopic } from '../lib/firebase';
 import { donorsApi } from '../../lib/api';
 
 interface AuthContextType {
@@ -35,6 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const donorProfile = await donorsApi.getById(firebaseUser.uid);
         if (donorProfile) {
           localStorage.setItem('erythronet_current_user', JSON.stringify(donorProfile));
+          if (donorProfile.city) {
+            subscribeToCityTopic(donorProfile.city);
+          }
         } else {
           // If logged in via firebase but no donor profile exists yet, remove old session cache
           localStorage.removeItem('erythronet_current_user');

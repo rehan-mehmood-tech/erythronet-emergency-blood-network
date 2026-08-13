@@ -22,11 +22,17 @@ async function resolveBaseUrl(): Promise<string> {
     return resolvedBaseUrl;
   }
 
-  // Try localhost first (dev mode); fall back to Render silently
+  // If running locally, resolve to localhost immediately to avoid cold-start timeouts
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    resolvedBaseUrl = LOCAL_URL;
+    return resolvedBaseUrl;
+  }
+
+  // Try localhost first; fall back to Render silently
   try {
     const ctrl = new AbortController();
-    const id = setTimeout(() => ctrl.abort(), 2500);
-    await fetch(`${LOCAL_URL}/api/requests/`, { signal: ctrl.signal, method: 'HEAD' });
+    const id = setTimeout(() => ctrl.abort(), 3000);
+    await fetch(`${LOCAL_URL}/api/requests`, { signal: ctrl.signal, method: 'GET' });
     clearTimeout(id);
     resolvedBaseUrl = LOCAL_URL;
   } catch {
@@ -181,6 +187,14 @@ export const donorsApi = {
       body: JSON.stringify({ phone }),
     });
     return mapDonor(data);
+  },
+
+  /** Subscribe FCM token to topic */
+  subscribeTopic: async (token: string, topic: string) => {
+    await apiFetch('/api/notifications/subscribe-topic', {
+      method: 'POST',
+      body: JSON.stringify({ token, topic }),
+    });
   },
 };
 

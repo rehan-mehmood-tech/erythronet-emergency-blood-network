@@ -62,8 +62,36 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Caching variables for GET /api/requests
+let requestsCache = null;
+let requestsCacheTime = 0;
+const CACHE_TTL_MS = 5000;
+
+function invalidateRequestsCache() {
+  requestsCache = null;
+  requestsCacheTime = 0;
+}
+
+function safeGetSeconds(val) {
+  if (!val) return null;
+  if (typeof val.toDate === 'function') {
+    return val.toDate().getTime() / 1000;
+  }
+  if (typeof val === 'number') {
+    return val < 1e11 ? val : val / 1000;
+  }
+  const date = new Date(val);
+  return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+}
+
+function safeGetIsoString(seconds) {
+  if (!seconds) return null;
+  return new Date(seconds * 1000).toISOString();
+}
+
 // Helper to normalize Firestore request documents for frontend compatibility
 function normalizeRequest(data, docId) {
+  if (!data) data = {};
   const normalizedStatus = (data.status || '').toLowerCase().replace(/\s+/g, '-'); // "En Route" -> "en-route", "Awaiting" -> "awaiting"
   const normalizedUrgency = (data.urgency || '').toLowerCase();
   const bloodGroup = data.blood_group || data.bloodGroup || '';
@@ -72,13 +100,9 @@ function normalizeRequest(data, docId) {
   const ward = data.ward || data.location || '';
   const district = data.district || data.location || '';
 
-  // Parse created_at / createdAt
-  let createdAtSeconds = Date.now() / 1000;
-  if (data.created_at) {
-    createdAtSeconds = Number(data.created_at);
-  } else if (data.createdAt) {
-    createdAtSeconds = new Date(data.createdAt).getTime() / 1000;
-  }
+  const createdAtSeconds = safeGetSeconds(data.created_at || data.createdAt) || (Date.now() / 1000);
+  const acceptedAtSeconds = safeGetSeconds(data.accepted_at || data.acceptedAt);
+  const lockExpiresAtSeconds = safeGetSeconds(data.lock_expires_at || data.lockExpiresAt);
 
   return {
     ...data,
@@ -95,12 +119,17 @@ function normalizeRequest(data, docId) {
     location: ward,
     district: district,
     created_at: createdAtSeconds,
-    createdAt: new Date(createdAtSeconds * 1000).toISOString()
+    createdAt: safeGetIsoString(createdAtSeconds),
+    accepted_at: acceptedAtSeconds,
+    acceptedAt: safeGetIsoString(acceptedAtSeconds),
+    lock_expires_at: lockExpiresAtSeconds,
+    lockExpiresAt: safeGetIsoString(lockExpiresAtSeconds)
   };
 }
 
 // Helper to normalize Firestore donor documents for frontend compatibility
 function normalizeDonor(data, docId) {
+  if (!data) data = {};
   const bloodGroup = data.blood_group || data.bloodGroup || '';
   const name = data.name || data.fullName || '';
   const phone = data.phone || '';
@@ -110,12 +139,7 @@ function normalizeDonor(data, docId) {
   const lastDonation = data.last_donation || data.lastDonation || null;
   const totalDonations = data.total_donations !== undefined ? data.total_donations : (data.totalDonations || 0);
 
-  let registeredAtSeconds = Date.now() / 1000;
-  if (data.registered_at) {
-    registeredAtSeconds = Number(data.registered_at);
-  } else if (data.registeredAt) {
-    registeredAtSeconds = new Date(data.registeredAt).getTime() / 1000;
-  }
+  const registeredAtSeconds = safeGetSeconds(data.registered_at || data.registeredAt) || (Date.now() / 1000);
 
   return {
     ...data,
@@ -132,7 +156,7 @@ function normalizeDonor(data, docId) {
     total_donations: totalDonations,
     totalDonations: totalDonations,
     registered_at: registeredAtSeconds,
-    registeredAt: new Date(registeredAtSeconds * 1000).toISOString()
+    registeredAt: safeGetIsoString(registeredAtSeconds)
   };
 }
 
@@ -290,11 +314,11 @@ app.get('/api/donors/:uid', async (req, res) => {
   try {
     const doc = await db.collection('donors').doc(req.params.uid).get();
     if (!doc.exists) {
-      return res.status(404).json({ detail: "Donor profile not found" });
+      return res.status(404).json({ message: "Donor not found" });
     }
     res.status(200).json(normalizeDonor(doc.data(), doc.id));
   } catch (error) {
-    console.error("Error in GET /api/donors/:uid:", error);
+    console.error("GET /api/donors/:uid Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -311,13 +335,25 @@ app.get('/api/requests', async (req, res) => {
     const urgency = req.query.urgency;
     const status = req.query.status;
 
-    // Fetch all requests ordered by created_at desc (or Fallback ordering if created_at is missing)
-    const snapshot = await db.collection('requests').get();
+    // Check in-memory cache
+    let allRequests = null;
+    const now = Date.now();
+    if (requestsCache && (now - requestsCacheTime) < CACHE_TTL_MS) {
+      allRequests = requestsCache;
+    } else {
+      // Fetch all requests from Firestore
+      const snapshot = await db.collection('requests').get();
+      allRequests = [];
+      snapshot.forEach(doc => {
+        allRequests.push(normalizeRequest(doc.data(), doc.id));
+      });
+      // Update cache
+      requestsCache = allRequests;
+      requestsCacheTime = now;
+    }
+
     const results = [];
-
-    snapshot.forEach(doc => {
-      const normalized = normalizeRequest(doc.data(), doc.id);
-
+    allRequests.forEach(normalized => {
       // Client-side filtering for status
       if (status && status !== 'all') {
         if (normalized.status !== status.toLowerCase()) {
@@ -358,8 +394,8 @@ app.get('/api/requests', async (req, res) => {
 
     res.status(200).json(results.slice(skip, skip + limit));
   } catch (error) {
-    console.error("Error in GET /api/requests:", error);
-    res.status(500).json({ error: error.message });
+    console.error("GET /api/requests Error:", error);
+    res.status(200).json([]);
   }
 });
 
@@ -445,6 +481,28 @@ app.post('/api/requests', upload.single('slip_file'), async (req, res) => {
     };
 
     await db.collection('requests').doc(reqId).set(requestDoc);
+    invalidateRequestsCache();
+
+    // FCM Push Notification trigger (non-blocking)
+    const topic = `city_${(city || '').toLowerCase().trim().replace(/\s+/g, '_')}`;
+    const message = {
+      notification: {
+        title: `🚨 Emergency: ${finalBloodGroup} Needed in ${city || ''}`,
+        body: `${hospital || ''} - ${parseInt(units) || 1} Unit(s) required. Click to respond!`,
+      },
+      data: {
+        requestId: reqId,
+        url: `/request/${reqId}`,
+      },
+      topic: topic,
+    };
+    admin.messaging().send(message)
+      .then(() => {
+        console.log(`[FCM] Notification successfully sent to topic: ${topic}`);
+      })
+      .catch(err => {
+        console.error("FCM Background Error:", err);
+      });
 
     console.log(`[BROADCAST] Express Broadcast Engine triggered for Request ${reqId}:`);
     console.log(`- Channel A (Live Board): Published to database.`);
@@ -516,6 +574,7 @@ const handleAccept = async (req, res) => {
     };
 
     await ref.update(update);
+    invalidateRequestsCache();
     res.status(200).json(normalizeRequest({ ...data, ...update }, id));
   } catch (error) {
     console.error("Error in accept/respond request:", error);
@@ -560,6 +619,7 @@ app.post('/api/requests/:id/cancel', async (req, res) => {
     };
 
     await ref.update(update);
+    invalidateRequestsCache();
     res.status(200).json(normalizeRequest({ ...data, ...update }, id));
   } catch (error) {
     console.error("Error in POST /api/requests/:id/cancel:", error);
@@ -579,14 +639,16 @@ app.post('/api/requests/:id/fulfill', async (req, res) => {
 
     const data = doc.data();
     const currentNormalized = normalizeRequest(data, id);
-    if (currentNormalized.status !== 'en-route') {
-      return res.status(400).json({ detail: "Request must be en-route before fulfillment" });
+    const validStatuses = ['awaiting', 'en-route'];
+    if (!validStatuses.includes(currentNormalized.status)) {
+      return res.status(400).json({ detail: "Request must be awaiting or en-route before fulfillment" });
     }
 
-    const isCapitalized = data.status === 'En Route';
+    const isCapitalized = data.status === 'Awaiting' || data.status === 'En Route';
     const targetStatus = isCapitalized ? 'Fulfilled' : 'fulfilled';
 
     await ref.update({ status: targetStatus });
+    invalidateRequestsCache();
 
     // Increment donor stats
     const donorId = data.accepted_by_donor_id || data.acceptedByDonorId;
@@ -606,9 +668,24 @@ app.post('/api/requests/:id/fulfill', async (req, res) => {
       }
     }
 
-    res.status(200).json(normalizeRequest({ ...data, status: targetStatus }, id));
+    res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error in POST /api/requests/:id/fulfill:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/notifications/subscribe-topic
+app.post('/api/notifications/subscribe-topic', async (req, res) => {
+  try {
+    const { token, topic } = req.body;
+    if (!token || !topic) {
+      return res.status(400).json({ detail: "Token and Topic are required" });
+    }
+    const response = await admin.messaging().subscribeToTopic([token], topic);
+    res.status(200).json({ success: true, response });
+  } catch (error) {
+    console.error("Error subscribing to topic:", error);
     res.status(500).json({ error: error.message });
   }
 });

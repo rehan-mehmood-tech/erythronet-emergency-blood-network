@@ -148,15 +148,14 @@ export default function Landing() {
 
     const fetchActiveRequests = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/requests/");
-        if (response.ok) {
-          const data = await response.json();
-          const mapped = data.map(mapRawRequest);
-          const activeOnly = mapped
-            .filter((req: any) => req.status !== "fulfilled" && req.status !== "🟢 Fulfilled")
-            .slice(0, 3);
-          setPreviewRequests(activeOnly);
-        }
+        const data = await backend.requestsApi.getAll();
+        const activeOnly = data
+          .filter((req: any) => {
+            const stat = (req.status || '').toLowerCase().replace(/\s+/g, '-');
+            return stat !== 'fulfilled';
+          })
+          .slice(0, 3);
+        setPreviewRequests(activeOnly);
       } catch (err) {
         console.error("Failed to fetch landing page request preview:", err);
       } finally {
@@ -170,7 +169,10 @@ export default function Landing() {
       setRequests(data);
       const mapped = data.map(mapRawRequest);
       const activeOnly = mapped
-        .filter((req: any) => req.status !== "fulfilled" && req.status !== "🟢 Fulfilled")
+        .filter((req: any) => {
+          const stat = (req.status || '').toLowerCase().replace(/\s+/g, '-');
+          return stat !== 'fulfilled';
+        })
         .slice(0, 3);
       if (activeOnly.length > 0) {
         setPreviewRequests(activeOnly);
@@ -181,7 +183,10 @@ export default function Landing() {
     return () => unsubscribe();
   }, [])
 
-  const liveCount = requests.filter((r) => r.status === 'awaiting').length
+  const liveCount = requests.filter((r) => {
+    const stat = (r.status || '').toLowerCase().replace(/\s+/g, '-');
+    return stat === 'awaiting';
+  }).length
 
   return (
     <div className="pt-16">
