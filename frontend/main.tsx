@@ -21,8 +21,10 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
   }
 });
 
-// Register Firebase Messaging Service Worker
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+// Register Firebase Messaging Service Worker if FCM is enabled
+const isFcmEnabled = import.meta.env.VITE_ENABLE_FCM === 'true';
+
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator && isFcmEnabled) {
   navigator.serviceWorker
     .register('/firebase-messaging-sw.js')
     .then((registration) => {

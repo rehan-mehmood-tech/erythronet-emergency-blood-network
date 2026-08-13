@@ -43,19 +43,25 @@ import { getMessaging, getToken, Messaging } from 'firebase/messaging';
 import { donorsApi } from '../../lib/api';
 
 export let messaging: Messaging | null = null;
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+const isFcmEnabled = import.meta.env.VITE_ENABLE_FCM === 'true';
+
+if (typeof window !== "undefined" && "serviceWorker" in navigator && isFcmEnabled && !isMockKey) {
   try {
-    if (app && !isMockKey) {
+    if (app) {
       messaging = getMessaging(app);
-    } else {
-      console.warn("⚠️ FCM Messaging bypassed: Valid VITE_FIREBASE_API_KEY is missing or invalid.");
     }
   } catch (err) {
     console.warn("⚠️ FCM Messaging unavailable in current browser context:", err);
   }
+} else if (!isFcmEnabled) {
+    console.warn("⚠️ FCM Messaging bypassed: VITE_ENABLE_FCM is not true.");
+} else if (isMockKey) {
+    console.warn("⚠️ FCM Messaging bypassed: Valid VITE_FIREBASE_API_KEY is missing or invalid.");
 }
 
 export const requestNotificationPermission = async () => {
+  if (!isFcmEnabled || isMockKey) return null;
+  
   try {
     if (typeof window === "undefined" || !("Notification" in window)) return null;
     const permission = await Notification.requestPermission();
