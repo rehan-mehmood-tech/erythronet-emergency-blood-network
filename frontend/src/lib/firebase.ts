@@ -3,14 +3,14 @@ import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 
-// Firebase configuration using Vite environment variables
+// Firebase configuration using Vite environment variables or default fallbacks
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "erythronet-emergency-blood-net.firebaseapp.com",
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "erythronet-emergency-blood-net",
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "erythronet-emergency-blood-net.firebasestorage.app",
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "195574177790",
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:195574177790:web:541f5d7c7893eead486aaf"
 };
 
 let app: FirebaseApp | null = null;
@@ -24,22 +24,16 @@ googleProvider.setCustomParameters({
     prompt: 'select_account'
 });
 
-const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-
-if (!apiKey) {
-    console.warn("⚠️ VITE_FIREBASE_API_KEY is not defined in .env.local!");
-} else {
-    try {
-        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        auth = getAuth(app);
-        if (auth && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-            auth.settings.appVerificationDisabledForTesting = true;
-        }
-        db = getFirestore(app);
-        storage = getStorage(app);
-    } catch (error) {
-        console.warn("⚠️ Firebase failed to initialize. Check your API keys in .env.local:", error);
+try {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    if (auth && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        auth.settings.appVerificationDisabledForTesting = true;
     }
+    db = getFirestore(app);
+    storage = getStorage(app);
+} catch (error) {
+    console.warn("⚠️ Firebase failed to initialize:", error);
 }
 
 import { getMessaging, getToken, Messaging } from 'firebase/messaging';
@@ -61,14 +55,19 @@ export const requestNotificationPermission = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) return null;
     const permission = await Notification.requestPermission();
     if (permission === "granted" && messaging) {
-      const token = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
-      });
-      console.log("FCM Device Token:", token);
-      return token;
+      try {
+        const token = await getToken(messaging, {
+          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
+        });
+        console.log("FCM Device Token:", token);
+        return token;
+      } catch (tokenError: any) {
+        console.warn("⚠️ FCM Token Fetch failed (harmless if testing locally without valid key):", tokenError?.message || tokenError);
+        return null;
+      }
     }
   } catch (error) {
-    console.error("Notification permission error:", error);
+    console.warn("⚠️ Notification permission error:", error);
   }
   return null;
 };
