@@ -1,83 +1,116 @@
-# ErythroNet - Emergency Blood Matching Network
+# ErythroNet Emergency Blood Network
 
-ErythroNet (formerly RedCellNet) is a decentralized emergency blood coordination network designed to provide structure, speed, and accountability to urban emergency blood donation. It replaces unstructured social media/WhatsApp broadcasts with a structured, verified, real-time board.
+ErythroNet is a real-time emergency blood coordination platform built for cities in Pakistan where urgent blood requests often fail because the request is buried in WhatsApp spam, duplicate donor travel is common, and there is no trusted matching flow between donors and verified hospital requests.
+
+The project replaces reactive message threads with a structured request board, donor verification flow, and geo-aware notification system so blood requests can be handled faster, more transparently, and with less duplication.
 
 ---
 
-## Workspace Structure
+## Architecture & Tech Stack
 
-The project is structured as a decoupled monorepo containing two main folders ready for independent deployment:
+### Frontend
+- React 18 + TypeScript
+- Vite for local development and build output
+- Tailwind CSS for responsive UI and interaction styling
+- Browser-side request polling and city/blood filter interfaces
+- Live board experience for emergency request discovery and donor actions
+
+### Backend
+- Node.js + Express
+- Firebase Cloud Firestore for persistent request and donor data
+- Firebase Admin SDK for FCM messaging and topic-based broadcasts
+- Multer-based upload handling for hospital slips and verification documents
+- In-memory request cache to keep response times low under active request load
+
+### Notification & Matching Model
+- Geo-targeted city topics such as `city_lahore`, `city_karachi`, and `city_islamabad`
+- Background FCM dispatch for new urgent requests without blocking app responses
+- Donor acceptance flow with en-route lock state to prevent duplicate travel to the same request
+- Medical compatibility guard logic to keep donor-to-request matching transparent and cautious
+
+---
+
+## Key Capabilities
+
+### 1. Geo-Targeted FCM Broadcasts
+When a verified request is created, the backend publishes a topic-based push notification for the relevant city and related audience segment. This keeps urgent calls visible to nearby donors without requiring a full native mobile app.
+
+### 2. Sub-100ms API Caching
+The request board uses a short-lived in-memory cache with a 3-second TTL so repeated reads do not repeatedly hit Firestore. This reduces latency during active board refreshes while preserving fresh data after the cache window expires.
+
+### 3. Medical Compatibility Guard
+The platform surfaces a compatibility-aware donor flow so users can verify blood compatibility and request urgency before confirming a response. The request board is structured around trust, speed, and status transparency rather than uncontrolled broadcast chaos.
+
+---
+
+## Repository Layout
 
 ```text
-ErythroNet with Next js and sql lite/
-├── frontend/             <-- React + Vite (Deployable to Vercel)
-│   ├── src/              <-- Page components, layouts, routing, types
-│   ├── public/           <-- Static assets
-│   ├── package.json      <-- Independent dependencies
-│   ├── vite.config.ts    <-- Vite build and Figma Make configuration
-│   └── .env.production   <-- Production API configuration
-├── backend/              <-- FastAPI + SQLite (Deployable to Render)
-│   ├── app/              <-- API endpoints, models, routers, schemas
-│   ├── uploads/          <-- Prescription and verification storage (absolute resolution)
-│   ├── erythronet.db     <-- SQLite database
-│   ├── requirements.txt  <-- Python dependencies
-│   ├── Procfile          <-- Render startup configuration
-│   └── .env              <-- Environment variables for database & port
-├── pnpm-workspace.yaml   <-- Root workspaces configuration
-├── package.json          <-- Monorepo task runner (delegates commands to frontend)
-└── README.md             <-- Documentation
+.
+├── backend/                  # Express API, Firestore access, FCM dispatch, uploads
+├── frontend/                 # React + Vite app for donor and request interfaces
+├── .gitignore                # Secrets and build artifacts exclusions
+├── README.md                 # Project overview and setup instructions
+├── PRD.md                    # Product requirements and feature brief
+├── package.json              # Monorepo scripts and root dependencies
+├── pnpm-workspace.yaml       # Workspace configuration
+├── vercel.json               # Deployment configuration
+└── ...
 ```
 
 ---
 
-## Local Development Setup
+## Local Setup
 
-### Prerequisite Tooling
-* Node.js v22
-* pnpm v10
-* Python 3.10+
+### Prerequisites
+- Node.js 18+
+- npm or pnpm
+- Firebase project credentials for Firestore and FCM
 
-### 1. Frontend Setup
-Workspaces are configured, allowing all dependency resolution and command execution from the root directory:
+### Install dependencies
 ```bash
-# Install dependencies from root
-pnpm install --ignore-scripts
+# Root workspace
+npm install
 
-# Launch the development server
-pnpm run dev
+# Frontend app
+cd frontend
+npm install
 ```
-The frontend dev server runs at `http://localhost:8443`.
 
-### 2. Backend Setup
-Navigate into the `/backend` folder and run:
+### Run the frontend
+```bash
+cd frontend
+npm run dev
+```
+The app is expected to run on the Vite default local port, typically `http://localhost:8443` depending on environment config.
+
+### Run the backend
 ```bash
 cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run server
-python run.py
+npm install
+node server.js
 ```
-The API documentation is accessible at `http://localhost:8000/docs`.
+The backend API will run on `http://localhost:8000` by default unless overridden with `PORT`.
+
+### Environment configuration
+Create a local environment file for Firebase and app settings if required, and do not commit secrets. Keep values such as Firebase service account files and `.env` files out of source control.
 
 ---
 
-## Deployment Readiness
+## Security Notes
 
-### Frontend (Vercel Target)
-The `/frontend` folder is configured for Vercel deployment:
-* Relative path aliasing (`@/*`) is fully self-contained inside the `frontend` package.
-* Env variables `VITE_API_BASE_URL` are defined in `.env.development` and `.env.production`.
-* To deploy: Set the Vercel **Root Directory** to `frontend`.
+- Firebase service account credentials must remain outside Git tracking.
+- Environment variables should be stored in `.env` or `.env.local` files and ignored by Git.
+- Sensitive files such as `backend/serviceAccountKey.json` are blocked from version control and should be loaded securely during deployment only.
 
-### Backend (Render Target)
-The `/backend` folder is configured for Render deployment:
-* `requirements.txt` contains all necessary dependencies.
-* `Procfile` is set up with: `web: uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-* `main.py` is configured with CORS origin regex to support dynamic `https://*.vercel.app` requests.
-* `config.py` resolves `UPLOAD_DIR` dynamically via absolute filesystem paths, ensuring robust execution.
+---
+
+## Verification
+
+The frontend build is validated using:
+```bash
+cd frontend
+npm run build
+```
+This confirms the TypeScript and Vite compilation pipeline is still healthy for production builds.
+

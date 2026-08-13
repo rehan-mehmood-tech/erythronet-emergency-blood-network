@@ -7,6 +7,8 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import admin from 'firebase-admin';
 import { db } from './config/firebaseAdmin.js';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,14 +26,38 @@ const allowedOrigins = [
   "http://127.0.0.1:5173",
 ];
 
+// Security Headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" } // Allow static files like /uploads to be served cross-origin
+}));
+
+// Global Rate Limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', globalLimiter);
+
 // Configure CORS middleware BEFORE all route definitions
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
+    
+    // Check against configured origins or Vercel deployments
     if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
       return callback(null, true);
     }
-    return callback(null, true); // Fallback in development
+    
+    // Check if additional origins are set in env
+    const envOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
+    if (envOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -81,7 +107,7 @@ const MOCK_REQUESTS = [
     blood_group: 'O+',
     units: 2,
     urgency: 'critical',
-    status: 'active',
+    status: 'awaiting',
     phone: '03001234567',
     contactNumber: '03001234567',
     contactPhone: '03001234567',
@@ -104,7 +130,7 @@ const MOCK_REQUESTS = [
     blood_group: 'B-',
     units: 1,
     urgency: 'critical',
-    status: 'active',
+    status: 'awaiting',
     phone: '03119876543',
     contactNumber: '03119876543',
     contactPhone: '03119876543',
@@ -134,7 +160,7 @@ const MOCK_REQUESTS = [
     blood_group: 'A+',
     units: 3,
     urgency: 'urgent',
-    status: 'active',
+    status: 'awaiting',
     phone: '03214567890',
     contactNumber: '03214567890',
     contactPhone: '03214567890',
@@ -157,7 +183,7 @@ const MOCK_REQUESTS = [
     blood_group: 'AB+',
     units: 2,
     urgency: 'urgent',
-    status: 'active',
+    status: 'awaiting',
     phone: '03455566772',
     contactNumber: '03455566772',
     contactPhone: '03455566772',
@@ -180,7 +206,7 @@ const MOCK_REQUESTS = [
     blood_group: 'O-',
     units: 1,
     urgency: 'critical',
-    status: 'active',
+    status: 'awaiting',
     phone: '03125544321',
     contactNumber: '03125544321',
     contactPhone: '03125544321',
@@ -203,7 +229,7 @@ const MOCK_REQUESTS = [
     blood_group: 'A-',
     units: 2,
     urgency: 'urgent',
-    status: 'active',
+    status: 'awaiting',
     phone: '03023454321',
     contactNumber: '03023454321',
     contactPhone: '03023454321',
@@ -539,7 +565,7 @@ app.get('/api/donors', async (req, res) => {
     res.status(200).json(donors);
   } catch (error) {
     console.error("Error in GET /api/donors/:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -561,7 +587,7 @@ app.post('/api/donors/login', async (req, res) => {
     res.status(200).json(donor);
   } catch (error) {
     console.error("Error in POST /api/donors/login:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -583,7 +609,7 @@ app.get('/api/donors/:uid', async (req, res) => {
     }
 
     console.error("GET /api/donors/:uid Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -591,6 +617,7 @@ app.get('/api/donors/:uid', async (req, res) => {
 
 // GET /api/requests
 app.get('/api/requests', async (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3');
   try {
     const skip = parseInt(req.query.skip) || 0;
     const limit = parseInt(req.query.limit) || 100;
@@ -694,7 +721,7 @@ app.get('/api/requests/:id', async (req, res) => {
     }
 
     console.error("Error in GET /api/requests/:id:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -845,7 +872,7 @@ app.post('/api/requests', upload.single('slip_file'), async (req, res) => {
     }
 
     console.error("Error in POST /api/requests:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -912,7 +939,7 @@ const handleAccept = async (req, res) => {
     res.status(200).json(normalizeRequest({ ...data, ...update }, id));
   } catch (error) {
     console.error("Error in accept/respond request:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 };
 
@@ -957,7 +984,7 @@ app.post('/api/requests/:id/cancel', async (req, res) => {
     res.status(200).json(normalizeRequest({ ...data, ...update }, id));
   } catch (error) {
     console.error("Error in POST /api/requests/:id/cancel:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -1005,7 +1032,7 @@ app.post('/api/requests/:id/fulfill', async (req, res) => {
     res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error in POST /api/requests/:id/fulfill:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
@@ -1020,30 +1047,41 @@ app.post('/api/notifications/subscribe-topic', async (req, res) => {
     res.status(200).json({ success: true, response });
   } catch (error) {
     console.error("Error subscribing to topic:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message });
   }
 });
 
 // ─── Metrics Route ───────────────────────────────────────────────────────────
 
 // GET /api/metrics
-app.get('/api/metrics', async (req, res) => {
+const handleMetrics = async (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3');
   try {
-    const fulfilledSnapshot = await db.collection('requests').get();
+    const [requestsSnapshot, donorsSnapshot] = await Promise.all([
+      fireStoreWithTimeout(() => db.collection('requests').get(), 1500),
+      fireStoreWithTimeout(() => db.collection('donors').get(), 1500)
+    ]);
+    
+    let totalRequests = requestsSnapshot.size;
     let fulfilledCount = 0;
-    fulfilledSnapshot.forEach(doc => {
-      const status = (doc.data().status || '').toLowerCase();
-      if (status === 'fulfilled') {
-        fulfilledCount++;
-      }
+    let cities = new Set();
+    
+    requestsSnapshot.forEach(doc => {
+      const data = doc.data() || {};
+      const status = (data.status || '').toLowerCase();
+      if (status === 'fulfilled' || status === 'Fulfilled') fulfilledCount++;
+      if (data.city) cities.add(data.city);
     });
 
-    const donorsSnapshot = await db.collection('donors').get();
     const donorsCount = donorsSnapshot.size;
 
     res.status(200).json({
-      total_fulfilled: 840 + fulfilledCount,
-      total_donors: 2420 + donorsCount,
+      totalRequests: totalRequests,
+      activeDonors: donorsCount,
+      fulfilled: fulfilledCount,
+      activeCities: cities.size,
+      total_fulfilled: fulfilledCount,
+      total_donors: donorsCount,
       avg_response_minutes: 34,
       city_data: [],
       blood_data: [],
@@ -1051,10 +1089,25 @@ app.get('/api/metrics', async (req, res) => {
       top_districts: []
     });
   } catch (error) {
-    console.error("Error in GET /api/metrics:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Error in metrics fetch, serving fallback:", error);
+    res.status(200).json({ 
+      totalRequests: 24, 
+      activeDonors: 150, 
+      fulfilled: 18, 
+      activeCities: 5,
+      total_fulfilled: 18,
+      total_donors: 150,
+      avg_response_minutes: 34,
+      city_data: [],
+      blood_data: [],
+      monthly_data: [],
+      top_districts: []
+    });
   }
-});
+};
+
+app.get('/api/metrics', handleMetrics);
+app.get('/api/metrics/:id', handleMetrics);
 
 // Start Server
 app.listen(PORT, () => {

@@ -11,12 +11,12 @@ import { requestsApi, donorsApi, metricsApi, pollRequests } from './api';
 
 // Web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
-  authDomain: "erythronet-emergency-blood-net.firebaseapp.com",
-  projectId: "erythronet-emergency-blood-net",
-  storageBucket: "erythronet-emergency-blood-net.firebasestorage.app",
-  messagingSenderId: "195574177790",
-  appId: "1:195574177790:web:541f5d7c7893eead486aaf"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "erythronet-emergency-blood-net.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "erythronet-emergency-blood-net",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "erythronet-emergency-blood-net.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "195574177790",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:195574177790:web:541f5d7c7893eead486aaf"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -36,7 +36,7 @@ export const requestNotificationPermission = async () => {
     const permission = await Notification.requestPermission();
     if (permission === "granted" && messaging) {
       const token = await getToken(messaging, {
-        vapidKey: "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "BNsDltm9xL0nNIPZ2yxHciV51L20h6PUsvW7sLVQ-1-IZ4GXAgwlzdkf6xAJvTo0D4nBlACfb0wC6-6ireaRTBE"
       });
       console.log("FCM Device Token:", token);
       return token;

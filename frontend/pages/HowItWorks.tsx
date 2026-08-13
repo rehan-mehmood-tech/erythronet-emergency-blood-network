@@ -131,31 +131,33 @@ export default function HowItWorks() {
           </motion.p>
           <motion.div
             variants={fadeUpVariants}
-            className="bg-white rounded-2xl border border-[#E8E8E8] overflow-hidden"
+            className="bg-white rounded-2xl border border-[#E8E8E8] overflow-x-auto no-scrollbar"
             style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}
           >
-            <div className="grid grid-cols-[1fr_1fr_1fr] text-xs font-bold uppercase tracking-wider border-b border-[#E8E8E8]">
-              <div className="p-4 text-[#969696]">Feature</div>
-              <div className="p-4 text-[#6B6B6B] border-x border-[#E8E8E8]">WhatsApp</div>
-              <div className="p-4 text-[#C1121F]">ErythroNet</div>
-            </div>
-            {WHATSAPP_VS.map(({ label, whatsapp, erythro }) => (
-              <div key={label} className="grid grid-cols-[1fr_1fr_1fr] text-sm border-b border-[#E8E8E8] last:border-0">
-                <div className="p-4 font-medium text-[#171717] text-xs">{label}</div>
-                <div className="p-4 border-x border-[#E8E8E8]">
-                  <div className="flex items-center gap-1.5 text-[#969696] text-xs">
-                    <X size={12} className="text-[#969696] flex-shrink-0" strokeWidth={2} />
-                    {whatsapp}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-1.5 text-[#168A55] text-xs">
-                    <CheckCircle size={12} className="flex-shrink-0" strokeWidth={2} />
-                    {erythro}
-                  </div>
-                </div>
+            <div className="min-w-[500px]">
+              <div className="grid grid-cols-[1fr_1fr_1fr] text-xs font-bold uppercase tracking-wider border-b border-[#E8E8E8]">
+                <div className="p-4 text-[#969696]">Feature</div>
+                <div className="p-4 text-[#6B6B6B] border-x border-[#E8E8E8]">WhatsApp</div>
+                <div className="p-4 text-[#C1121F]">ErythroNet</div>
               </div>
-            ))}
+              {WHATSAPP_VS.map(({ label, whatsapp, erythro }) => (
+                <div key={label} className="grid grid-cols-[1fr_1fr_1fr] text-sm border-b border-[#E8E8E8] last:border-0">
+                  <div className="p-4 font-medium text-[#171717] text-xs">{label}</div>
+                  <div className="p-4 border-x border-[#E8E8E8]">
+                    <div className="flex items-center gap-1.5 text-[#969696] text-xs">
+                      <X size={12} className="text-[#969696] flex-shrink-0" strokeWidth={2} />
+                      {whatsapp}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-1.5 text-[#168A55] text-xs">
+                      <CheckCircle size={12} className="flex-shrink-0" strokeWidth={2} />
+                      {erythro}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </motion.div>
         </div>
       </motion.div>

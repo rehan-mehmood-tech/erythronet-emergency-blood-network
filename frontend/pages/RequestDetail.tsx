@@ -479,52 +479,54 @@ export default function RequestDetail() {
       {showMismatchModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMismatchModal(false)} />
-          <div className="relative bg-[#121212] border border-[#2A1013] w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl text-white">
-            <div className="w-10 h-1 bg-neutral-800 rounded-full mx-auto mb-6 sm:hidden" />
+          <div className="relative bg-[#121212] border border-[#2A1013] w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl text-white max-h-[90vh] flex flex-col">
+            <div className="w-10 h-1 bg-neutral-800 rounded-full mx-auto mb-6 sm:hidden flex-shrink-0" />
             
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1C1C1E] border border-neutral-800 text-[10px] font-bold uppercase tracking-wider text-[#FF453A] mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF453A] animate-pulse" />
-              Verified Member Warning
-            </div>
+            <div className="overflow-y-auto no-scrollbar">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1C1C1E] border border-neutral-800 text-[10px] font-bold uppercase tracking-wider text-[#FF453A] mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF453A] animate-pulse" />
+                Verified Member Warning
+              </div>
 
-            <h2 className="text-xl font-extrabold text-white mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Blood Group Mismatch
-            </h2>
-            
-            <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
-              Your registered blood group is <strong className="text-[#FF453A] font-bold">{currentDonor?.bloodGroup || 'O+'}</strong>, but this request requires <strong className="text-[#FF453A] font-bold">{requestData.bloodGroup}</strong>. Direct donation is medically incompatible.
-            </p>
+              <h2 className="text-xl font-extrabold text-white mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                Blood Group Mismatch
+              </h2>
+              
+              <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
+                Your registered blood group is <strong className="text-[#FF453A] font-bold">{currentDonor?.bloodGroup || 'O+'}</strong>, but this request requires <strong className="text-[#FF453A] font-bold">{requestData.bloodGroup}</strong>. Direct donation is medically incompatible.
+              </p>
 
-            <div className="space-y-2.5">
-              <button
-                onClick={() => {
-                  setShowMismatchModal(false);
-                  setShowModal(true);
-                }}
-                className="w-full bg-[#FF453A] hover:bg-[#FF3B30] text-white text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                I'm Sending Someone Else
-              </button>
+              <div className="space-y-2.5 mt-auto">
+                <button
+                  onClick={() => {
+                    setShowMismatchModal(false);
+                    setShowModal(true);
+                  }}
+                  className="w-full bg-[#FF453A] hover:bg-[#FF3B30] text-white text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer min-h-[44px]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  I'm Sending Someone Else
+                </button>
 
-              <button
-                onClick={() => {
-                  const url = window.location.href;
-                  navigator.clipboard.writeText(url);
-                  showToast("Request link copied to clipboard!");
-                }}
-                className="w-full bg-[#1C1C1E] border border-neutral-800 hover:bg-neutral-800 text-neutral-200 text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Copy Request Link
-              </button>
+                <button
+                  onClick={() => {
+                    const url = window.location.href;
+                    navigator.clipboard.writeText(url);
+                    showToast("Request link copied to clipboard!");
+                  }}
+                  className="w-full bg-[#1C1C1E] border border-neutral-800 hover:bg-neutral-800 text-neutral-200 text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer min-h-[44px]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  Copy Request Link
+                </button>
 
-              <button
-                onClick={() => setShowMismatchModal(false)}
-                className="w-full bg-transparent text-neutral-500 hover:text-neutral-400 text-sm font-bold py-2 px-4 rounded-xl transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
+                <button
+                  onClick={() => setShowMismatchModal(false)}
+                  className="w-full bg-transparent text-neutral-500 hover:text-neutral-400 text-sm font-bold py-2 px-4 rounded-xl transition-all cursor-pointer min-h-[44px]"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -534,58 +536,62 @@ export default function RequestDetail() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl">
-            <div className="w-10 h-1 bg-[#E8E8E8] rounded-full mx-auto mb-6 sm:hidden" />
-            <h2 className="text-xl font-extrabold text-[#171717] mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              You're about to help.
-            </h2>
-            <p className="text-sm text-[#6B6B6B] mb-5">
-              Estimated time to reach <strong>{requestData.hospital}</strong>?
-            </p>
-            <div className="grid grid-cols-3 gap-2.5 mb-6">
-              {ETA_OPTIONS.map((eta) => (
-                <button
-                  key={eta}
-                  onClick={() => setSelectedEta(eta)}
-                  className={`py-3 rounded-xl text-sm font-bold transition-all ${
-                    selectedEta === eta
-                      ? 'bg-[#C1121F] text-white shadow-md'
-                      : 'bg-white border border-[#E8E8E8] text-[#171717] hover:bg-[#FDE8EA] hover:border-[#F0D9DC]'
-                  }`}
-                  style={{
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    boxShadow: selectedEta === eta ? '0 4px 12px rgba(193,18,31,0.25)' : '2px 2px 6px rgba(193,18,31,0.05), -2px -2px 6px rgba(255,255,255,0.9)',
-                  }}
-                >
-                  {eta}
-                </button>
-              ))}
-            </div>
-            <div className="bg-[#FFF7F7] border border-[#F0D9DC] rounded-xl p-3 mb-5">
-              <p className="text-xs text-[#6B6B6B] leading-relaxed">
-                By confirming, you commit to reaching the hospital within your selected ETA. Only proceed if you are medically eligible and genuinely available.
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="w-10 h-1 bg-[#E8E8E8] rounded-full mx-auto mb-6 sm:hidden flex-shrink-0" />
+            <div className="overflow-y-auto no-scrollbar">
+              <h2 className="text-xl font-extrabold text-[#171717] mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                You're about to help.
+              </h2>
+              <p className="text-sm text-[#6B6B6B] mb-5">
+                Estimated time to reach <strong>{requestData.hospital}</strong>?
               </p>
+              <div className="grid grid-cols-3 gap-2.5 mb-6">
+                {ETA_OPTIONS.map((eta) => (
+                  <button
+                    key={eta}
+                    onClick={() => setSelectedEta(eta)}
+                    className={`py-3 rounded-xl text-sm font-bold transition-all min-h-[44px] ${
+                      selectedEta === eta
+                        ? 'bg-[#C1121F] text-white shadow-md'
+                        : 'bg-white border border-[#E8E8E8] text-[#171717] hover:bg-[#FDE8EA] hover:border-[#F0D9DC]'
+                    }`}
+                    style={{
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      boxShadow: selectedEta === eta ? '0 4px 12px rgba(193,18,31,0.25)' : '2px 2px 6px rgba(193,18,31,0.05), -2px -2px 6px rgba(255,255,255,0.9)',
+                    }}
+                  >
+                    {eta}
+                  </button>
+                ))}
+              </div>
+              <div className="bg-[#FFF7F7] border border-[#F0D9DC] rounded-xl p-3 mb-5">
+                <p className="text-xs text-[#6B6B6B] leading-relaxed">
+                  By confirming, you commit to reaching the hospital within your selected ETA. Only proceed if you are medically eligible and genuinely available.
+                </p>
+              </div>
+              <div className="mt-auto">
+                <button
+                  onClick={handleConfirm}
+                  disabled={!selectedEta || confirming}
+                  className="btn-primary w-full justify-center py-3.5 text-sm rounded-xl disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                >
+                  {confirming ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Confirming...
+                    </span>
+                  ) : (
+                    <>
+                      <CheckCircle size={16} strokeWidth={2} />
+                      Confirm &amp; Go
+                    </>
+                  )}
+                </button>
+                <button onClick={() => setShowModal(false)} className="btn-ghost w-full justify-center mt-2 text-sm text-[#6B6B6B] min-h-[44px]">
+                  Cancel
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleConfirm}
-              disabled={!selectedEta || confirming}
-              className="btn-primary w-full justify-center py-3.5 text-sm rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {confirming ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Confirming...
-                </span>
-              ) : (
-                <>
-                  <CheckCircle size={16} strokeWidth={2} />
-                  Confirm &amp; Go
-                </>
-              )}
-            </button>
-            <button onClick={() => setShowModal(false)} className="btn-ghost w-full justify-center mt-2 text-sm text-[#6B6B6B]">
-              Cancel
-            </button>
           </div>
         </div>
       )}

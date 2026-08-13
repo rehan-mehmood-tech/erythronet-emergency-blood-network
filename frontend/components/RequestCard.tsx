@@ -64,7 +64,7 @@ interface Props {
 export default function RequestCard({ data, compact, dark }: Props) {
   const { user } = useAuth();
   const protect = useProtectedAction();
-  const st = statusConfig[data.status]
+  const st = statusConfig[data.status as RequestStatus] || { label: 'UNKNOWN', dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-500' }
   const isCritical = data.urgency === 'critical' && data.status === 'awaiting'
   const time = ('timeAgo' in data && data.timeAgo) ? data.timeAgo : formatTimeAgo(data.createdAt)
 
@@ -80,7 +80,7 @@ export default function RequestCard({ data, compact, dark }: Props) {
       : data.urgency === 'urgent'
       ? 'text-amber-400 font-bold'
       : 'text-[#D4A5A9]'
-    : urgencyColor[data.urgency]
+    : urgencyColor[data.urgency as Urgency] || 'text-[#6B6B6B]'
 
   const statusBadgeStyle = dark
     ? data.status === 'awaiting'
@@ -114,7 +114,7 @@ export default function RequestCard({ data, compact, dark }: Props) {
           <div className="flex items-start justify-between mb-3">
             <div>
               <span className={`text-[10px] font-bold tracking-widest ${urgencyTextColor}`}>
-                {urgencyLabel[data.urgency]}
+                {urgencyLabel[data.urgency as Urgency] || 'UNKNOWN'}
               </span>
               <div className={`flex items-center gap-1.5 mt-0.5 ${dark ? 'text-[#D4A5A9]' : 'text-[#969696]'}`}>
                 <Clock size={11} strokeWidth={2} />
@@ -154,14 +154,14 @@ export default function RequestCard({ data, compact, dark }: Props) {
           </div>
 
           {/* Verification + CTA */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-1">
             <div className={`flex items-center gap-1 transition-transform duration-300 group-hover:-translate-y-0.5 ${dark ? 'text-emerald-400' : 'text-[#168A55]'}`}>
               <ShieldCheck size={12} strokeWidth={2} />
               <span className="text-[11px] font-medium">Verified Request</span>
             </div>
             {data.status === 'awaiting' && (
               <button
-                className="bg-[#C1121F] text-white hover:bg-[#9E1622] shadow-[0_0_12px_rgba(193,18,31,0.4)] py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 inline-flex items-center gap-1.5 cursor-pointer"
+                className="bg-[#C1121F] text-white hover:bg-[#9E1622] shadow-[0_0_12px_rgba(193,18,31,0.4)] py-2 px-4 text-xs font-semibold rounded-lg transition-all duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px] sm:min-h-0 sm:py-1.5 sm:px-3"
                 onClick={async (e) => {
                   e.stopPropagation();
                   protect(async () => {

@@ -1,13 +1,21 @@
 importScripts("https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js");
 
+const getConfig = (key, fallback) => {
+  try {
+    return (typeof process !== 'undefined' && process.env && process.env[key]) || fallback;
+  } catch (e) {
+    return fallback;
+  }
+};
+
 firebase.initializeApp({
-  apiKey: "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8",
-  authDomain: "erythronet-emergency-blood-net.firebaseapp.com",
-  projectId: "erythronet-emergency-blood-net",
-  storageBucket: "erythronet-emergency-blood-net.firebasestorage.app",
-  messagingSenderId: "195574177790",
-  appId: "1:195574177790:web:541f5d7c7893eead486aaf"
+  apiKey: getConfig('VITE_FIREBASE_API_KEY', "AIzaSyAvcVSlqgDz3xikH5ybYXQWoMUNrbyviv8"),
+  authDomain: getConfig('VITE_FIREBASE_AUTH_DOMAIN', "erythronet-emergency-blood-net.firebaseapp.com"),
+  projectId: getConfig('VITE_FIREBASE_PROJECT_ID', "erythronet-emergency-blood-net"),
+  storageBucket: getConfig('VITE_FIREBASE_STORAGE_BUCKET', "erythronet-emergency-blood-net.firebasestorage.app"),
+  messagingSenderId: getConfig('VITE_FIREBASE_MESSAGING_SENDER_ID', "195574177790"),
+  appId: getConfig('VITE_FIREBASE_APP_ID', "1:195574177790:web:541f5d7c7893eead486aaf")
 });
 
 const messaging = firebase.messaging();
